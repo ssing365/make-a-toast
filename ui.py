@@ -1,7 +1,10 @@
 import tkinter as tk
-from tkinter import ttk, messagebox, simpledialog
+from tkinter import ttk, messagebox, simpledialog, filedialog
 from datetime import datetime
 import database as db
+import openpyxl
+import re
+from datetime import datetime
 
 class MakeToastApp:
     def __init__(self, root):
@@ -466,8 +469,29 @@ class MakeToastApp:
     
     def import_excel(self):
         """엑셀 파일 임포트"""
-        messagebox.showinfo("안내", "엑셀 임포트 기능은 추후 구현 예정입니다.\n"
-                                   "회차별 엑셀 파일을 업로드하면 자동으로 회차와 참가자가 등록됩니다.")
+        from tkinter import filedialog
+        
+        file_path = filedialog.askopenfilename(
+            title="엑셀 파일 선택",
+            filetypes=[("Excel files", "*.xlsx *.xls")]
+        )
+        
+        if not file_path:
+            return
+        
+        response = messagebox.askyesno("확인", 
+                                    "엑셀 파일을 임포트하시겠습니까?\n"
+                                    "모든 시트가 회차로 변환됩니다.")
+        
+        if response:
+            try:
+                db.import_excel_file(file_path)  # 여기! file_path만 전달
+                messagebox.showinfo("완료", "엑셀 임포트가 완료되었습니다!")
+                self.refresh_sessions()
+                self.refresh_recommend_sessions()
+                self.load_all_participants()
+            except Exception as e:
+                messagebox.showerror("오류", f"임포트 실패:\n{e}")
     
     def delete_session(self):
         """현재 선택된 회차 삭제"""

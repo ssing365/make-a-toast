@@ -8,3 +8,6 @@ __pycache__/
 
 # VS Code 설정 폴더 제외 (선택)
 .vscode/
+
+# 데이터베이스 파일 제외 (선택)
+maketoast.db
