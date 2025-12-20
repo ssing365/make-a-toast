@@ -1,6 +1,9 @@
 import sqlite3
 from datetime import datetime
 from typing import List, Dict, Optional, Tuple
+import openpyxl
+import re
+from datetime import datetime
 
 DB_NAME = "maketoast.db"
 
@@ -15,22 +18,26 @@ def init_db():
     conn = get_connection()
     cursor = conn.cursor()
     
-    # 참가자 마스터 테이블
+    # 참가자 마스터 테이블 (수정됨)
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS participants (
             name TEXT NOT NULL,
             birth_date TEXT NOT NULL,
             gender TEXT NOT NULL,
+            nickname TEXT,
+            phone TEXT,
+            location TEXT,
             job TEXT,
             mbti TEXT,
-            phone TEXT,
+            intro TEXT,
+            signup_route TEXT,
             first_visit_date TEXT,
             memo TEXT,
             PRIMARY KEY (name, birth_date)
         )
     """)
     
-    # 회차 정보 테이블
+    # 회차 정보 테이블 (수정)
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS sessions (
             session_id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -38,7 +45,7 @@ def init_db():
             session_date TEXT NOT NULL,
             session_time TEXT,
             theme TEXT,
-            target_age_range TEXT,
+            host TEXT,
             status TEXT DEFAULT '준비중'
         )
     """)

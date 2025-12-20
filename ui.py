@@ -430,10 +430,13 @@ class MakeToastApp:
         time_entry.grid(row=2, column=1, padx=10, pady=10)
         
         ttk.Label(dialog, text="주제:").grid(row=3, column=0, padx=10, pady=10, sticky='w')
-        theme_combo = ttk.Combobox(dialog, values=['운동 좋아하는 사람들', 'MBTI I들의 모임', 'MBTI E들의 모임', '결혼', '기타'], state='readonly')
+        theme_combo = ttk.Combobox(dialog, width=30, values=['#오운완 ♥운동하는남녀♥를 위해 준비한 미팅', '♥MBTI-I♥를 위해 준비한 아주 섬세한 미팅',
+            '♥MBTI-N♥을 위해 준비한 아주 섬세한 미팅',
+            '♥결혼을 전제로♥진지하고 섬세한 미팅',
+            '♥MBTI-S♥를 위해 준비한 아주 섬세한 미팅',
+            '기타'], state='readonly')
         theme_combo.grid(row=3, column=1, padx=10, pady=10)
         theme_combo.current(0)
-        
         def save_session():
             try:
                 session_id = db.create_session(
