@@ -17,7 +17,7 @@ def init_db():
     conn = get_connection()
     cursor = conn.cursor()
     
-    # 참가자 마스터 테이블 (수정됨)
+    # 참가자 마스터 테이블
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS participants (
             name TEXT NOT NULL,
@@ -36,11 +36,10 @@ def init_db():
         )
     """)
     
-    # 회차 정보 테이블 (수정)
+    # 회차 정보 테이블 (session_number 제거)
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS sessions (
             session_id INTEGER PRIMARY KEY AUTOINCREMENT,
-            session_number INTEGER,
             session_date TEXT NOT NULL,
             session_time TEXT,
             theme TEXT,
@@ -90,22 +89,22 @@ def add_participant(name: str, birth_date: str, gender: str,
     finally:
         conn.close()
 
-def create_session(session_number, session_date, session_time, theme, host=""):
-    """회차 생성"""
+def create_session(session_date, session_time, theme, host=""):
+    """회차 생성 (session_number 제거)"""
     conn = get_connection()
     cursor = conn.cursor()
     
     cursor.execute("""
         INSERT INTO sessions 
-        (session_number, session_date, session_time, theme, host)
-        VALUES (?, ?, ?, ?, ?)
-    """, (session_number, session_date, session_time, theme, host))
+        (session_date, session_time, theme, host)
+        VALUES (?, ?, ?, ?)
+    """, (session_date, session_time, theme, host))
     
     session_id = cursor.lastrowid
     conn.commit()
     conn.close()
     
-    print(f"✅ {session_number}회차 생성 완료! (ID: {session_id})")
+    print(f"✅ 회차 생성 완료! (날짜: {session_date}, ID: {session_id})")
     return session_id
 
 def add_attendance(session_id: int, participant_name: str, participant_birth: str):
@@ -173,15 +172,15 @@ def get_all_participants() -> List[Dict]:
     return [dict(row) for row in rows]
 
 def get_all_sessions() -> List[Dict]:
-    """모든 회차 조회"""
+    """모든 회차 조회 (날짜순 정렬)"""
     conn = get_connection()
     cursor = conn.cursor()
     
     cursor.execute("""
-        SELECT session_id, session_number, session_date, session_time, 
-               theme, status
+        SELECT session_id, session_date, session_time, 
+               theme, host, status
         FROM sessions
-        ORDER BY session_date DESC
+        ORDER BY session_date DESC, session_time DESC
     """)
     
     rows = cursor.fetchall()
@@ -211,9 +210,9 @@ def get_session_participants(session_id: int) -> List[Dict]:
 def check_duplicate_meetings(session_id: int) -> List[Dict]:
     """
     현재 회차 참가자들 중 과거에 만난 적 있는 사람들 찾기
-    반환: [{'person1': '김철수', 'person1_birth': '1992-03-15', 
-           'person2': '이영희', 'person2_birth': '1994-07-20',
-           'met_sessions': [1, 3, 5]}]
+    반환: [{'person1': '김철수', 'person1_birth': '1992', 
+           'person2': '이영희', 'person2_birth': '1994',
+           'session_dates': ['2024-11-15', '2024-12-01']}]
     """
     conn = get_connection()
     cursor = conn.cursor()
@@ -233,7 +232,7 @@ def check_duplicate_meetings(session_id: int) -> List[Dict]:
             
             # 두 사람이 함께 참가했던 회차 찾기
             cursor.execute("""
-                SELECT DISTINCT s.session_number
+                SELECT DISTINCT s.session_date
                 FROM attendance a1
                 JOIN attendance a2 ON a1.session_id = a2.session_id
                 JOIN sessions s ON a1.session_id = s.session_id
@@ -242,15 +241,15 @@ def check_duplicate_meetings(session_id: int) -> List[Dict]:
                   AND a1.session_id != ?
             """, (p1_name, p1_birth, p2_name, p2_birth, session_id))
             
-            met_sessions = [row[0] for row in cursor.fetchall()]
+            met_dates = [row[0] for row in cursor.fetchall()]
             
-            if met_sessions:
+            if met_dates:
                 duplicates.append({
                     'person1': p1_name,
                     'person1_birth': p1_birth,
                     'person2': p2_name,
                     'person2_birth': p2_birth,
-                    'met_sessions': met_sessions
+                    'session_dates': met_dates  # 이 부분 수정!
                 })
     
     conn.close()
@@ -271,7 +270,7 @@ def get_participant_detail(name: str, birth_date: str) -> Dict:
     
     # 참가 이력
     cursor.execute("""
-        SELECT s.session_number, s.session_date, s.theme
+        SELECT s.session_id, s.session_date, s.session_time, s.theme
         FROM attendance a
         JOIN sessions s ON a.session_id = s.session_id
         WHERE a.participant_name = ? AND a.participant_birth = ?
@@ -289,9 +288,9 @@ def get_participant_detail(name: str, birth_date: str) -> Dict:
             JOIN sessions s ON a.session_id = s.session_id
             JOIN participants p ON a.participant_name = p.name 
                                 AND a.participant_birth = p.birth_date
-            WHERE s.session_number = ?
+            WHERE s.session_id = ?
               AND NOT (p.name = ? AND p.birth_date = ?)
-        """, (visit['session_number'], name, birth_date))
+        """, (visit['session_id'], name, birth_date))
         
         visit['met_people'] = [dict(row) for row in cursor.fetchall()]
     
@@ -425,20 +424,21 @@ def import_excel_file(file_path):
     """엑셀 파일에서 모든 시트를 읽어 회차별로 DB에 저장"""
     wb = openpyxl.load_workbook(file_path, data_only=True)
     
-    session_counter = 1
     total_participants = 0
+    processed_sessions = 0
     
     for sheet_name in wb.sheetnames:
         sheet = wb[sheet_name]
         
+        # "의 사본" 제거
+        sheet_name_clean = sheet_name.replace("의 사본", "").strip()
+        
         print(f"\n{'='*60}")
-        print(f"처리중: {sheet_name}")
+        print(f"처리중: {sheet_name_clean}")
         print(f"{'='*60}")
         
         # 1. 시트명에서 날짜 추출
-        # 예: "20251113" → "2025-11-13"
-        # 예: "20251115(토) 2pm" → "2025-11-15"
-        date_match = re.search(r'(\d{4})(\d{2})(\d{2})', sheet_name)
+        date_match = re.search(r'(\d{4})(\d{2})(\d{2})', sheet_name_clean)
         if not date_match:
             print(f"⚠️ 시트명에서 날짜를 찾을 수 없음, 스킵")
             continue
@@ -447,8 +447,7 @@ def import_excel_file(file_path):
         session_date = f"{year}-{month}-{day}"
         
         # 2. 시트명에서 시간 추출
-        # 예: "2pm" → "14:00", "7pm" → "19:00"
-        time_match = re.search(r'(\d+)\s*(am|pm)', sheet_name, re.IGNORECASE)
+        time_match = re.search(r'(\d+)\s*(am|pm)', sheet_name_clean, re.IGNORECASE)
         if time_match:
             hour = int(time_match.group(1))
             meridiem = time_match.group(2).lower()
@@ -461,17 +460,15 @@ def import_excel_file(file_path):
             session_time = "미정"
         
         # 3. A1 셀에서 주제 추출
-        # 예: "11월 21일(금) 7:30PM - ❤️MBTI-N❤️을 위해 준비한 아주 섬세한 미팅"
         a1_cell = sheet['A1'].value
         theme = "미정"
         if a1_cell:
             a1_str = str(a1_cell).strip()
-            # "-" 이후의 내용을 주제로 추출
             theme_match = re.search(r'-\s*(.+)$', a1_str)
             if theme_match:
                 theme = theme_match.group(1).strip()
             else:
-                theme = a1_str  # "-"가 없으면 전체를 주제로
+                theme = a1_str
         
         # 4. N2 셀에서 HOST 추출
         n2_cell = sheet['N2'].value
@@ -485,26 +482,23 @@ def import_excel_file(file_path):
         # 5. 회차 생성
         try:
             session_id = create_session(
-                session_number=session_counter,
                 session_date=session_date,
                 session_time=session_time,
                 theme=theme,
                 host=host
             )
-            session_counter += 1
+            processed_sessions += 1
         except Exception as e:
             print(f"❌ 회차 생성 실패: {e}")
             continue
         
-        # 6. 참가자 데이터 읽기 (2행부터 시작, 빈 행 있어도 계속 스캔)
+        # 6. 참가자 데이터 읽기 (동일)
         participant_count = 0
         skipped_count = 0
         
         for row_idx in range(2, sheet.max_row + 1):
             row = sheet[row_idx]
             
-            # 컬럼 매핑: A, B, C, D, G, H, I, J, K, L
-            # 인덱스:    0  1  2  3  6  7  8  9  10 11
             try:
                 gender = str(row[0].value).strip() if row[0].value else ""
                 nickname = str(row[1].value).strip() if row[1].value else ""
@@ -517,54 +511,43 @@ def import_excel_file(file_path):
                 intro = str(row[10].value).strip() if row[10].value else ""
                 signup_route = str(row[11].value).strip() if row[11].value else ""
             except IndexError:
-                # 컬럼이 부족한 경우
                 continue
             
-            # 필수 항목 체크: 이름과 출생년도
             if not name or not birth_year or birth_year == "-":
-                continue  # 빈 행은 조용히 스킵
+                continue
             
-            # 성별 정리 (M/F로 통일)
             if gender in ['남', '남자', 'M', 'm', 'male', '男']:
                 gender = 'M'
             elif gender in ['여', '여자', 'F', 'f', 'female', '女']:
                 gender = 'F'
             else:
-                print(f"  ⚠️ {row_idx}행: 성별 불명확 ({gender}), 스킵")
                 skipped_count += 1
                 continue
             
-            # 출생년도 정리 (4자리 숫자만 추출)
             birth_year_clean = re.sub(r'\D', '', birth_year)
             
             if len(birth_year_clean) != 4:
-                print(f"  ⚠️ {row_idx}행: 출생년도 형식 오류 ({birth_year}), 스킵")
                 skipped_count += 1
                 continue
             
-            # YYYY-01-01 형식으로 저장
             birth_date = f"{birth_year_clean}-01-01"
             
-            # 전화번호 정리 (있으면 숫자만 추출)
             phone_clean = ""
             if phone and phone != "-":
                 phone_clean = re.sub(r'\D', '', phone)
             
-            # DB에 추가
             conn = get_connection()
             cursor = conn.cursor()
             
             try:
-                # 참가자 추가 또는 무시 (이미 있으면 무시)
                 cursor.execute("""
                     INSERT OR IGNORE INTO participants 
                     (name, birth_date, gender, nickname, phone, location, job, mbti, 
-                    intro, signup_route, first_visit_date)
+                     intro, signup_route, first_visit_date)
                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """, (name, birth_date, gender, nickname, phone_clean, location, job, mbti,
-                    intro, signup_route, session_date))
+                      intro, signup_route, session_date))
                 
-                # 회차에 참가자 추가
                 cursor.execute("""
                     INSERT OR IGNORE INTO attendance 
                     (session_id, participant_name, participant_birth)
@@ -575,7 +558,6 @@ def import_excel_file(file_path):
                 participant_count += 1
                 
             except Exception as e:
-                print(f"  ❌ {row_idx}행 오류 ({name}): {e}")
                 skipped_count += 1
             finally:
                 conn.close()
@@ -585,5 +567,5 @@ def import_excel_file(file_path):
     
     print(f"\n{'='*60}")
     print(f"🎉 전체 임포트 완료!")
-    print(f"총 {session_counter - 1}개 회차, {total_participants}명 참가자")
+    print(f"총 {processed_sessions}개 회차, {total_participants}명 참가자")
     print(f"{'='*60}")

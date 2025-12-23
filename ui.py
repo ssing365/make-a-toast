@@ -318,10 +318,10 @@ class MakeToastApp:
     def refresh_sessions(self):
         """회차 목록 새로고침"""
         sessions = db.get_all_sessions()
-        session_list = [f"{s['session_number']}회차 - {s['session_date']} {s['session_time']} ({s['theme']})" 
+        session_list = [f"{s['session_date']} {s['session_time']} - {s['theme']}" 
                        for s in sessions]
         self.session_combo['values'] = session_list
-        
+   
         if sessions:
             self.session_combo.current(0)
             self.on_session_selected()
@@ -338,12 +338,11 @@ class MakeToastApp:
         self.current_session_id = session['session_id']
         
         # 회차 정보 표시
-        info_text = (f"📅 {session['session_number']}회차 | "
-                    f"{session['session_date']} {session['session_time']} | "
-                    f"주제: {session['theme']} | ")
+        info_text = (f"📅 {session['session_date']} {session['session_time']} | "
+                    f"주제: {session['theme']} | "
+                    f"HOST: {session['host']}")
         self.session_info_label.config(text=info_text)
         
-        # 참가자 목록 로드
         self.load_session_participants()
     
     def load_session_participants(self):
@@ -399,7 +398,7 @@ class MakeToastApp:
         # 중복 내역 메시지
         msg = "⚠️ 중복 매칭 발견!\n\n"
         for dup in duplicates:
-            sessions_str = ', '.join(map(str, dup['met_sessions']))
+            sessions_str = ', '.join(map(str, dup['session_dates']))
             msg += f"• {dup['person1']} ↔ {dup['person2']}\n"
             msg += f"  → {sessions_str}회차에서 만남\n\n"
         
@@ -411,42 +410,34 @@ class MakeToastApp:
         
         dialog = tk.Toplevel(self.root)
         dialog.title("새 회차 생성")
-        dialog.geometry("400x300")
+        dialog.geometry("400x250")
         
-        # 회차 번호 자동 계산
-        sessions = db.get_all_sessions()
-        next_session_num = max([s['session_number'] for s in sessions], default=0) + 1
-        
-        ttk.Label(dialog, text="회차 번호:").grid(row=0, column=0, padx=10, pady=10, sticky='w')
-        session_num_entry = ttk.Entry(dialog)
-        session_num_entry.insert(0, str(next_session_num))
-        session_num_entry.grid(row=0, column=1, padx=10, pady=10)
-        
-        ttk.Label(dialog, text="날짜:").grid(row=1, column=0, padx=10, pady=10, sticky='w')
+        ttk.Label(dialog, text="날짜:").grid(row=0, column=0, padx=10, pady=10, sticky='w')
         date_picker = DateEntry(dialog, width=18, background='darkblue',
-                               foreground='white', borderwidth=2, 
-                               date_pattern='yyyy-mm-dd')
-        date_picker.grid(row=1, column=1, padx=10, pady=10)
+                            foreground='white', borderwidth=2, 
+                            date_pattern='yyyy-mm-dd')
+        date_picker.grid(row=0, column=1, padx=10, pady=10)
         
-        ttk.Label(dialog, text="요일, 시간대:").grid(row=2, column=0, padx=10, pady=10, sticky='w')
+        ttk.Label(dialog, text="시간대:").grid(row=1, column=0, padx=10, pady=10, sticky='w')
         time_entry = ttk.Entry(dialog)
-        time_entry.grid(row=2, column=1, padx=10, pady=10)
+        time_entry.grid(row=1, column=1, padx=10, pady=10)
         
-        ttk.Label(dialog, text="주제:").grid(row=3, column=0, padx=10, pady=10, sticky='w')
-        theme_combo = ttk.Combobox(dialog, width=30, values=['#오운완 ♥운동하는남녀♥를 위해 준비한 미팅', '♥MBTI-I♥를 위해 준비한 아주 섬세한 미팅',
-            '♥MBTI-N♥을 위해 준비한 아주 섬세한 미팅',
-            '♥결혼을 전제로♥진지하고 섬세한 미팅',
-            '♥MBTI-S♥를 위해 준비한 아주 섬세한 미팅',
-            '기타'], state='readonly')
-        theme_combo.grid(row=3, column=1, padx=10, pady=10)
+        ttk.Label(dialog, text="주제:").grid(row=2, column=0, padx=10, pady=10, sticky='w')
+        theme_combo = ttk.Combobox(dialog, values=['운동 좋아하는 사람들', 'MBTI I들의 모임', 'MBTI E들의 모임', '결혼', '기타'], state='readonly')
+        theme_combo.grid(row=2, column=1, padx=10, pady=10)
         theme_combo.current(0)
+        
+        ttk.Label(dialog, text="HOST:").grid(row=3, column=0, padx=10, pady=10, sticky='w')
+        host_entry = ttk.Entry(dialog)
+        host_entry.grid(row=3, column=1, padx=10, pady=10)
+        
         def save_session():
             try:
                 session_id = db.create_session(
-                    int(session_num_entry.get()),
                     date_picker.get(),
                     time_entry.get(),
                     theme_combo.get(),
+                    host_entry.get()
                 )
                 messagebox.showinfo("성공", "회차가 생성되었습니다!")
                 dialog.destroy()
@@ -454,8 +445,8 @@ class MakeToastApp:
             except Exception as e:
                 messagebox.showerror("오류", f"회차 생성 실패: {e}")
         
-        ttk.Button(dialog, text="생성", command=save_session).grid(row=5, column=0, 
-                                                                   columnspan=2, pady=20)
+        ttk.Button(dialog, text="생성", command=save_session).grid(row=4, column=0, 
+                                                                columnspan=2, pady=20)
     
     def add_participant_to_session(self, gender):
         """현재 회차에 참가자 추가"""
@@ -463,9 +454,67 @@ class MakeToastApp:
             messagebox.showwarning("경고", "회차를 먼저 선택해주세요!")
             return
         
-        gender_text = "남자" if gender == "M" else "여자"
-        messagebox.showinfo("안내", f"{gender_text} 참가자 추가 기능은 추후 구현 예정입니다.\n"
-                                   "현재는 database.py에서 직접 추가해주세요.")
+        dialog = tk.Toplevel(self.root)
+        dialog.title(f"{'남자' if gender == 'M' else '여자'} 참가자 추가")
+        dialog.geometry("400x500")
+        
+        ttk.Label(dialog, text="이름:").grid(row=0, column=0, padx=10, pady=10, sticky='w')
+        name_entry = ttk.Entry(dialog)
+        name_entry.grid(row=0, column=1, padx=10, pady=10)
+        
+        ttk.Label(dialog, text="출생년도:").grid(row=1, column=0, padx=10, pady=10, sticky='w')
+        birth_entry = ttk.Entry(dialog)
+        birth_entry.grid(row=1, column=1, padx=10, pady=10)
+        
+        ttk.Label(dialog, text="닉네임:").grid(row=2, column=0, padx=10, pady=10, sticky='w')
+        nickname_entry = ttk.Entry(dialog)
+        nickname_entry.grid(row=2, column=1, padx=10, pady=10)
+        
+        ttk.Label(dialog, text="전화번호:").grid(row=3, column=0, padx=10, pady=10, sticky='w')
+        phone_entry = ttk.Entry(dialog)
+        phone_entry.grid(row=3, column=1, padx=10, pady=10)
+        
+        ttk.Label(dialog, text="직업:").grid(row=4, column=0, padx=10, pady=10, sticky='w')
+        job_entry = ttk.Entry(dialog)
+        job_entry.grid(row=4, column=1, padx=10, pady=10)
+        
+        ttk.Label(dialog, text="MBTI:").grid(row=5, column=0, padx=10, pady=10, sticky='w')
+        mbti_entry = ttk.Entry(dialog)
+        mbti_entry.grid(row=5, column=1, padx=10, pady=10)
+        
+        def save_participant():
+            name = name_entry.get().strip()
+            birth_year = birth_entry.get().strip()
+            
+            if not name or not birth_year:
+                messagebox.showerror("오류", "이름과 출생년도는 필수입니다!")
+                return
+            
+            birth_date = f"{birth_year}-01-01"
+            
+            try:
+                # 참가자 추가
+                db.add_participant(
+                    name=name,
+                    birth_date=birth_date,
+                    gender=gender,
+                    job=job_entry.get(),
+                    mbti=mbti_entry.get(),
+                    phone=phone_entry.get(),
+                    memo=""
+                )
+                
+                # 회차에 참가자 추가
+                db.add_attendance(self.current_session_id, name, birth_date)
+                
+                messagebox.showinfo("완료", "참가자가 추가되었습니다!")
+                dialog.destroy()
+                self.load_session_participants()
+            except Exception as e:
+                messagebox.showerror("오류", f"추가 실패: {e}")
+        
+        ttk.Button(dialog, text="추가", command=save_participant).grid(row=6, column=0, 
+                                                                    columnspan=2, pady=20)
     
     def import_excel(self):
         """엑셀 파일 임포트"""
@@ -507,7 +556,7 @@ class MakeToastApp:
             return
         
         response = messagebox.askyesno("확인", 
-                                       f"{current_session['session_number']}회차를 삭제하시겠습니까?\n"
+                                       f"이 회차를 삭제하시겠습니까?\n"
                                        f"날짜: {current_session['session_date']}\n"
                                        f"주제: {current_session['theme']}\n\n"
                                        f"⚠️ 이 회차의 참가 기록도 모두 삭제됩니다!")
@@ -650,8 +699,8 @@ class MakeToastApp:
     def refresh_recommend_sessions(self):
         """추천 탭 회차 목록 새로고침"""
         sessions = db.get_all_sessions()
-        session_list = [f"{s['session_number']}회차 - {s['session_date']}" 
-                       for s in sessions]
+        session_list = [f"{s['session_date']} {s['session_time']}" 
+                    for s in sessions]
         self.recommend_session_combo['values'] = session_list
         
         if sessions:
@@ -779,7 +828,7 @@ MBTI: {detail['mbti']}
         history_text.pack(fill='both', expand=True, padx=5, pady=5)
         
         for visit in detail['visit_history']:
-            history_text.insert('end', f"📅 {visit['session_number']}회차 ({visit['session_date']})\n")
+            history_text.insert('end', f"📅 {visit['session_date']}\n")
             history_text.insert('end', f"   주제: {visit['theme']}\n")
             
             if visit['met_people']:
