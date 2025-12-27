@@ -35,11 +35,11 @@ class ParticipantTab:
         list_container.pack(fill='both', expand=True, padx=10, pady=5)
         
         # 왼쪽: 남자
-        male_frame = ttk.LabelFrame(list_container, text="남자")
-        male_frame.pack(side='left', fill='both', expand=True, padx=5)
+        self.male_frame = ttk.LabelFrame(list_container, text="남자")
+        self.male_frame.pack(side='left', fill='both', expand=True, padx=5)
         
         columns = ('name', 'birth_date', 'job', 'mbti', 'phone', 'location', 'signup_route', 'visit_count')
-        self.participant_male_tree = ttk.Treeview(male_frame, 
+        self.participant_male_tree = ttk.Treeview(self.male_frame, 
                                             columns=columns, show='headings')
         
         self.participant_male_tree.heading('name', text='이름')
@@ -60,7 +60,7 @@ class ParticipantTab:
         self.participant_male_tree.column('signup_route', width=70)
         self.participant_male_tree.column('visit_count', width=60)
         
-        male_scrollbar = ttk.Scrollbar(male_frame, orient='vertical', 
+        male_scrollbar = ttk.Scrollbar(self.male_frame, orient='vertical', 
                                  command=self.participant_male_tree.yview)
         self.participant_male_tree.configure(yscrollcommand=male_scrollbar.set)
         
@@ -71,10 +71,10 @@ class ParticipantTab:
         self.participant_male_tree.bind('<Button-3>', lambda e: self.show_participant_db_context_menu(e, 'M'))
         
         # 오른쪽: 여자
-        female_frame = ttk.LabelFrame(list_container, text="여자")
-        female_frame.pack(side='left', fill='both', expand=True, padx=5)
+        self.female_frame = ttk.LabelFrame(list_container, text="여자")
+        self.female_frame.pack(side='left', fill='both', expand=True, padx=5)
         
-        self.participant_female_tree = ttk.Treeview(female_frame, 
+        self.participant_female_tree = ttk.Treeview(self.female_frame, 
                                             columns=columns, show='headings')
         
         self.participant_female_tree.heading('name', text='이름')
@@ -95,7 +95,7 @@ class ParticipantTab:
         self.participant_female_tree.column('signup_route', width=70)
         self.participant_female_tree.column('visit_count', width=60)
         
-        female_scrollbar = ttk.Scrollbar(female_frame, orient='vertical', 
+        female_scrollbar = ttk.Scrollbar(self.female_frame, orient='vertical', 
                                  command=self.participant_female_tree.yview)
         self.participant_female_tree.configure(yscrollcommand=female_scrollbar.set)
         
@@ -117,6 +117,9 @@ class ParticipantTab:
         
         participants = db.get_all_participants()
         
+        male_count = 0
+        female_count = 0
+        
         for p in participants:
             detail = db.get_participant_detail(p['name'], p['birth_date'])
             birth_year = p['birth_date'][:4]
@@ -129,8 +132,14 @@ class ParticipantTab:
             
             if p['gender'] == 'M':
                 self.participant_male_tree.insert('', 'end', values=values, tags=tags)
+                male_count += 1
             else:
                 self.participant_female_tree.insert('', 'end', values=values, tags=tags)
+                female_count += 1
+        
+        # 프레임 제목에 인원 표시
+        self.male_frame.configure(text=f"남자({male_count}명)")
+        self.female_frame.configure(text=f"여자({female_count}명)")
     
     def search_participants(self):
         """참가자 검색 (남녀 분리)"""
@@ -142,6 +151,9 @@ class ParticipantTab:
             self.participant_female_tree.delete(item)
         
         participants = db.get_all_participants()
+        
+        male_count = 0
+        female_count = 0
         
         for p in participants:
             if search_term in p['name'].lower() or search_term in (p['job'] or '').lower():
@@ -156,8 +168,14 @@ class ParticipantTab:
                 
                 if p['gender'] == 'M':
                     self.participant_male_tree.insert('', 'end', values=values, tags=tags)
+                    male_count += 1
                 else:
                     self.participant_female_tree.insert('', 'end', values=values, tags=tags)
+                    female_count += 1
+        
+        # 프레임 제목에 검색 결과 인원 표시
+        self.male_frame.configure(text=f"남자({male_count}명)")
+        self.female_frame.configure(text=f"여자({female_count}명)")
     
     def show_participant_db_context_menu(self, event, gender):
         """참가자 DB 탭 우클릭 메뉴"""

@@ -109,7 +109,7 @@ class ParticipantDetailWindow:
         
         self.window = tk.Toplevel(parent)
         self.window.title(f"{name} 상세 정보")
-        self.window.geometry("600x800")
+        self.window.geometry("1000x1200")
         
         self.setup_ui()
     
@@ -137,7 +137,7 @@ MBTI: {detail['mbti']}
 총 방문횟수: {detail['visit_count']}회
         """
         
-        ttk.Label(info_frame, text=info_text, justify='left').pack(padx=10, pady=10)
+        ttk.Label(info_frame, text=info_text, justify='left').pack(anchor='nw', fill='x', padx=10, pady=10)
         
         # 자기소개
         intro_frame = ttk.LabelFrame(self.window, text="자기소개")
@@ -173,12 +173,44 @@ MBTI: {detail['mbti']}
         
         self.memo_text = tk.Text(memo_frame, height=5)
         self.memo_text.pack(fill='both', expand=True, padx=5, pady=5)
-        self.memo_text.insert('1.0', detail['memo'] or '')
+        
+        # 기본 내용이 없다면 placeholder 표시
+        if detail['memo']:
+            self.memo_text.insert('1.0', detail['memo'])
+            self.placeholder_active = False
+        else:
+            self.memo_text.insert('1.0', "이 참가자에 대해 기록할 사항을 여기 메모하세요")
+            self.memo_text.config(fg='gray')
+            self.placeholder_active = True
+        
+        # 메모 입력 시 placeholder 제거
+        self.memo_text.bind('<FocusIn>', self.on_memo_focus_in)
+        self.memo_text.bind('<FocusOut>', self.on_memo_focus_out)
         
         ttk.Button(memo_frame, text="메모 저장", command=self.save_memo).pack(pady=5)
     
     def save_memo(self):
         """메모 저장"""
         new_memo = self.memo_text.get('1.0', 'end-1c')
+        
+        # placeholder 텍스트는 저장하지 않음
+        if new_memo == "이 참가자에 대해 기록할 사항을 여기 메모하세요":
+            new_memo = ""
+        
         db.update_participant_memo(self.name, self.birth_date, new_memo)
         messagebox.showinfo("저장", "메모가 저장되었습니다!")
+    
+    def on_memo_focus_in(self, event):
+        """메모 입력창 포커스 시"""
+        if self.placeholder_active:
+            self.memo_text.delete('1.0', 'end')
+            self.memo_text.config(fg='black')
+            self.placeholder_active = False
+    
+    def on_memo_focus_out(self, event):
+        """메모 입력창 포커스 해제 시"""
+        content = self.memo_text.get('1.0', 'end-1c')
+        if not content:
+            self.memo_text.insert('1.0', "이 참가자에 대해 기록할 사항을 여기 메모하세요")
+            self.memo_text.config(fg='gray')
+            self.placeholder_active = True

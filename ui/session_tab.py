@@ -100,7 +100,7 @@ class SessionTab:
         # 남자 참가자 추가 버튼 (트리 아래에 배치)
         male_button_frame = ttk.Frame(left_frame)
         male_button_frame.pack(fill=X, padx=0, pady=5)
-        ttk.Button(male_button_frame, text="남자 참가자 추가", bootstyle=SECONDARY,
+        ttk.Button(male_button_frame, text="남자 참가자 추가",
                   command=lambda: self.add_participant_to_session('M')).pack()
         
         # 오른쪽: 여자
@@ -138,14 +138,14 @@ class SessionTab:
         # 여자 참가자 추가 버튼 (트리 아래에 배치)
         female_button_frame = ttk.Frame(right_frame)
         female_button_frame.pack(fill=X, padx=0, pady=5)
-        ttk.Button(female_button_frame, text="여자 참가자 추가", bootstyle=SECONDARY,
+        ttk.Button(female_button_frame, text="여자 참가자 추가",
                   command=lambda: self.add_participant_to_session('F')).pack()
         
         # 중복 체크 버튼 (하단 중앙에 별도 프레임으로)
         check_frame = ttk.Frame(self.parent)
         check_frame.pack(side='bottom', pady=10)
         
-        ttk.Button(check_frame, text="🔍 중복 체크", bootstyle=DANGER,
+        ttk.Button(check_frame, text="🔍 중복 체크", bootstyle=SECONDARY,
                   command=self.check_duplicates, width=20).pack()
         
         # 초기 데이터 로드

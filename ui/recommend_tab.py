@@ -118,7 +118,7 @@ class RecommendTab:
     def refresh_recommend_sessions(self):
         """추천 탭 회차 목록 새로고침"""
         sessions = db.get_all_sessions()
-        session_list = [f"{s['session_date']} {s['session_time']}" 
+        session_list = [f"{s['session_date']} {s['session_time']} - {s['theme']}" 
                     for s in sessions]
         self.recommend_session_combo['values'] = session_list
         
