@@ -420,6 +420,27 @@ def remove_participant_from_session(session_id: int, participant_name: str, part
     conn.close()
     print(f"✅ {participant_name} 제거 완료!")
 
+def delete_participant(participant_name: str, participant_birth: str):
+    """참가자를 DB에서 완전히 삭제 (참가 기록도 함께 삭제)"""
+    conn = get_connection()
+    cursor = conn.cursor()
+    
+    # 참가 기록 먼저 삭제
+    cursor.execute("""
+        DELETE FROM attendance 
+        WHERE participant_name = ? AND participant_birth = ?
+    """, (participant_name, participant_birth))
+    
+    # 참가자 삭제
+    cursor.execute("""
+        DELETE FROM participants 
+        WHERE name = ? AND birth_date = ?
+    """, (participant_name, participant_birth))
+    
+    conn.commit()
+    conn.close()
+    print(f"✅ {participant_name} 삭제 완료!")
+
 def import_excel_file(file_path):
     """엑셀 파일에서 모든 시트를 읽어 회차별로 DB에 저장"""
     wb = openpyxl.load_workbook(file_path, data_only=True)

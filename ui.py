@@ -192,6 +192,7 @@ class MakeToastApp:
         male_scrollbar.pack(side='right', fill='y')
         
         self.participant_male_tree.bind('<Double-1>', self.show_participant_detail)
+        self.participant_male_tree.bind('<Button-3>', lambda e: self.show_participant_db_context_menu(e, 'M'))
         
         # 오른쪽: 여자
         female_frame = ttk.LabelFrame(list_container, text="여자")
@@ -222,6 +223,7 @@ class MakeToastApp:
         female_scrollbar.pack(side='right', fill='y')
         
         self.participant_female_tree.bind('<Double-1>', self.show_participant_detail)
+        self.participant_female_tree.bind('<Button-3>', lambda e: self.show_participant_db_context_menu(e, 'F'))
         
         # 초기 데이터 로드
         self.load_all_participants()
@@ -683,6 +685,52 @@ class MakeToastApp:
                     self.participant_male_tree.insert('', 'end', values=values, tags=tags)
                 else:
                     self.participant_female_tree.insert('', 'end', values=values, tags=tags)
+    
+    def show_participant_db_context_menu(self, event, gender):
+        """참가자 DB 탭 우클릭 메뉴"""
+        tree = self.participant_male_tree if gender == 'M' else self.participant_female_tree
+        
+        # 클릭한 아이템 선택
+        item = tree.identify_row(event.y)
+        if item:
+            tree.selection_set(item)
+            
+            # 컨텍스트 메뉴 생성
+            menu = tk.Menu(self.root, tearoff=0)
+            menu.add_command(label="이 참가자 삭제", 
+                           command=lambda: self.delete_participant_from_db(tree, item))
+            menu.add_separator()
+            menu.add_command(label="상세 정보 보기", 
+                           command=lambda: self.show_participant_detail_from_tree(tree, item))
+            
+            # 메뉴 표시
+            menu.post(event.x_root, event.y_root)
+    
+    def delete_participant_from_db(self, tree, item):
+        """참가자를 DB에서 삭제"""
+        tags = tree.item(item, 'tags')
+        if len(tags) < 2:
+            return
+        
+        name, birth_date = tags[0], tags[1]
+        
+        response = messagebox.askyesno("확인", 
+                                       f"{name}님을 데이터베이스에서 삭제하시겠습니까?\n"
+                                       f"(참가 기록도 함께 삭제됩니다)")
+        
+        if response:
+            try:
+                db.delete_participant(name, birth_date)
+                messagebox.showinfo("완료", "참가자가 삭제되었습니다.")
+                self.load_all_participants()
+            except Exception as e:
+                messagebox.showerror("오류", f"삭제 실패: {e}")
+    
+    def show_participant_detail_from_tree(self, tree, item):
+        """트리 아이템에서 상세 정보 표시"""
+        tags = tree.item(item, 'tags')
+        if len(tags) >= 2:
+            self.show_detail_window(tags[0], tags[1])
     
     def show_participant_detail(self, event):
         """참가자 상세보기 (남녀 트리 모두 지원)"""
