@@ -68,7 +68,8 @@ def init_db():
     print("✅ DB 초기화 완료!")
 
 def add_participant(name: str, birth_date: str, gender: str, 
-                   job: str = "", mbti: str = "", phone: str = "", memo: str = ""):
+                   job: str = "", mbti: str = "", phone: str = "", 
+                   location: str = "", signup_route: str = "", memo: str = ""):
     """참가자 추가"""
     conn = get_connection()
     cursor = conn.cursor()
@@ -76,9 +77,10 @@ def add_participant(name: str, birth_date: str, gender: str,
     try:
         cursor.execute("""
             INSERT INTO participants 
-            (name, birth_date, gender, job, mbti, phone, first_visit_date, memo)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-        """, (name, birth_date, gender, job, mbti, phone, datetime.now().strftime("%Y-%m-%d"), memo))
+            (name, birth_date, gender, job, mbti, phone, location, signup_route, first_visit_date, memo)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """, (name, birth_date, gender, job, mbti, phone, location, signup_route, 
+              datetime.now().strftime("%Y-%m-%d"), memo))
         
         conn.commit()
         print(f"✅ {name} 추가 완료!")

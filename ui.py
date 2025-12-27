@@ -89,7 +89,7 @@ class MakeToastApp:
         self.male_tree.heading('signup_route', text='등록경로')
         
         self.male_tree.column('name', width=70)
-        self.male_tree.column('birth_date', width=70)
+        self.male_tree.column('birth_date', width=100)
         self.male_tree.column('job', width=80)
         self.male_tree.column('mbti', width=50)
         self.male_tree.column('phone', width=100)
@@ -123,7 +123,7 @@ class MakeToastApp:
         self.female_tree.heading('signup_route', text='등록경로')
         
         self.female_tree.column('name', width=70)
-        self.female_tree.column('birth_date', width=70)
+        self.female_tree.column('birth_date', width=100)
         self.female_tree.column('job', width=80)
         self.female_tree.column('mbti', width=50)
         self.female_tree.column('phone', width=100)
@@ -385,7 +385,11 @@ class MakeToastApp:
         
         for p in participants:
             birth_year = p['birth_date'][:4]
-            values = (p['name'], birth_year, p['job'], p['mbti'], p['phone'], 
+            detail = db.get_participant_detail(p['name'], p['birth_date'])
+            memo_indicator = "▲" if detail.get('memo') else ""
+            name_display = f"{p['name']}{memo_indicator}"
+            
+            values = (name_display, birth_year, p['job'], p['mbti'], p['phone'], 
                      p['location'] or '', p['signup_route'] or '')
             tags = (p['name'], p['birth_date'])
             
@@ -484,31 +488,42 @@ class MakeToastApp:
         
         dialog = tk.Toplevel(self.root)
         dialog.title(f"{'남자' if gender == 'M' else '여자'} 참가자 추가")
-        dialog.geometry("400x500")
+        dialog.geometry("450x650")
         
-        ttk.Label(dialog, text="이름:").grid(row=0, column=0, padx=10, pady=10, sticky='w')
-        name_entry = ttk.Entry(dialog)
+        # 이름 (필수)
+        ttk.Label(dialog, text="이름: ", foreground='red').grid(row=0, column=0, padx=10, pady=10, sticky='w')
+        name_entry = ttk.Entry(dialog, width=30)
         name_entry.grid(row=0, column=1, padx=10, pady=10)
         
-        ttk.Label(dialog, text="출생년도:").grid(row=1, column=0, padx=10, pady=10, sticky='w')
-        birth_entry = ttk.Entry(dialog)
+        # 출생년도 (필수)
+        ttk.Label(dialog, text="출생년도: ", foreground='red').grid(row=1, column=0, padx=10, pady=10, sticky='w')
+        birth_entry = ttk.Entry(dialog, width=30)
         birth_entry.grid(row=1, column=1, padx=10, pady=10)
         
-        ttk.Label(dialog, text="닉네임:").grid(row=2, column=0, padx=10, pady=10, sticky='w')
-        nickname_entry = ttk.Entry(dialog)
-        nickname_entry.grid(row=2, column=1, padx=10, pady=10)
+        # 직업
+        ttk.Label(dialog, text="직업:").grid(row=2, column=0, padx=10, pady=10, sticky='w')
+        job_entry = ttk.Entry(dialog, width=30)
+        job_entry.grid(row=2, column=1, padx=10, pady=10)
         
-        ttk.Label(dialog, text="전화번호:").grid(row=3, column=0, padx=10, pady=10, sticky='w')
-        phone_entry = ttk.Entry(dialog)
-        phone_entry.grid(row=3, column=1, padx=10, pady=10)
+        # MBTI
+        ttk.Label(dialog, text="MBTI:").grid(row=3, column=0, padx=10, pady=10, sticky='w')
+        mbti_entry = ttk.Entry(dialog, width=30)
+        mbti_entry.grid(row=3, column=1, padx=10, pady=10)
         
-        ttk.Label(dialog, text="직업:").grid(row=4, column=0, padx=10, pady=10, sticky='w')
-        job_entry = ttk.Entry(dialog)
-        job_entry.grid(row=4, column=1, padx=10, pady=10)
+        # 전화번호
+        ttk.Label(dialog, text="전화번호:").grid(row=4, column=0, padx=10, pady=10, sticky='w')
+        phone_entry = ttk.Entry(dialog, width=30)
+        phone_entry.grid(row=4, column=1, padx=10, pady=10)
         
-        ttk.Label(dialog, text="MBTI:").grid(row=5, column=0, padx=10, pady=10, sticky='w')
-        mbti_entry = ttk.Entry(dialog)
-        mbti_entry.grid(row=5, column=1, padx=10, pady=10)
+        # 사는곳
+        ttk.Label(dialog, text="사는곳:").grid(row=5, column=0, padx=10, pady=10, sticky='w')
+        location_entry = ttk.Entry(dialog, width=30)
+        location_entry.grid(row=5, column=1, padx=10, pady=10)
+        
+        # 등록경로
+        ttk.Label(dialog, text="등록경로:").grid(row=6, column=0, padx=10, pady=10, sticky='w')
+        signup_route_entry = ttk.Entry(dialog, width=30)
+        signup_route_entry.grid(row=6, column=1, padx=10, pady=10)
         
         def save_participant():
             name = name_entry.get().strip()
@@ -516,6 +531,11 @@ class MakeToastApp:
             
             if not name or not birth_year:
                 messagebox.showerror("오류", "이름과 출생년도는 필수입니다!")
+                return
+            
+            # 출생년도는 4자리 숫자만 허용
+            if not birth_year.isdigit() or len(birth_year) != 4:
+                messagebox.showerror("오류", "출생년도는 4자리 숫자만 입력 가능합니다! (예: 2000)")
                 return
             
             birth_date = f"{birth_year}-01-01"
@@ -529,6 +549,8 @@ class MakeToastApp:
                     job=job_entry.get(),
                     mbti=mbti_entry.get(),
                     phone=phone_entry.get(),
+                    location=location_entry.get(),
+                    signup_route=signup_route_entry.get(),
                     memo=""
                 )
                 
@@ -541,7 +563,7 @@ class MakeToastApp:
             except Exception as e:
                 messagebox.showerror("오류", f"추가 실패: {e}")
         
-        ttk.Button(dialog, text="추가", command=save_participant).grid(row=6, column=0, 
+        ttk.Button(dialog, text="추가", command=save_participant).grid(row=7, column=0, 
                                                                     columnspan=2, pady=20)
     
     def import_excel(self):
@@ -679,8 +701,10 @@ class MakeToastApp:
         for p in participants:
             detail = db.get_participant_detail(p['name'], p['birth_date'])
             birth_year = p['birth_date'][:4]
+            memo_indicator = "▲" if detail.get('memo') else ""
+            name_display = f"{p['name']}{memo_indicator}"
             
-            values = (p['name'], birth_year, p['job'], p['mbti'], 
+            values = (name_display, birth_year, p['job'], p['mbti'], 
                      p['phone'], p['location'] or '', p['signup_route'] or '', detail['visit_count'])
             tags = (p['name'], p['birth_date'])
             
@@ -704,8 +728,10 @@ class MakeToastApp:
             if search_term in p['name'].lower() or search_term in (p['job'] or '').lower():
                 detail = db.get_participant_detail(p['name'], p['birth_date'])
                 birth_year = p['birth_date'][:4]
+                memo_indicator = "▲" if detail.get('memo') else ""
+                name_display = f"{p['name']}{memo_indicator}"
                 
-                values = (p['name'], birth_year, p['job'], p['mbti'],
+                values = (name_display, birth_year, p['job'], p['mbti'],
                          p['phone'], p['location'] or '', p['signup_route'] or '', detail['visit_count'])
                 tags = (p['name'], p['birth_date'])
                 
@@ -834,9 +860,12 @@ class MakeToastApp:
         
         for p in self.recommendations:
             birth_year = p['birth_date'][:4]
+            detail = db.get_participant_detail(p['name'], p['birth_date'])
+            memo_indicator = "▲" if detail.get('memo') else ""
+            name_display = f"{p['name']}{memo_indicator}"
             
             self.recommend_tree.insert('', 'end',
-                                      values=(p['name'], birth_year, p['job'], p['mbti'], p['phone'],
+                                      values=(name_display, birth_year, p['job'], p['mbti'], p['phone'],
                                              p['location'] or '', p['signup_route'] or '', 
                                              p['last_visit'] or '-', p['visit_count']),
                                       tags=(p['name'], p['birth_date']))
@@ -874,7 +903,7 @@ class MakeToastApp:
         
         window = tk.Toplevel(self.root)
         window.title(f"{name} 상세 정보")
-        window.geometry("500x600")
+        window.geometry("600x800")
         
         # 기본 정보
         info_frame = ttk.LabelFrame(window, text="기본 정보")
