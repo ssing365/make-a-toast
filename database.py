@@ -161,7 +161,7 @@ def get_all_participants() -> List[Dict]:
     cursor = conn.cursor()
     
     cursor.execute("""
-        SELECT name, birth_date, gender, job, mbti, phone, first_visit_date, memo
+        SELECT name, birth_date, gender, job, mbti, phone, location, signup_route, first_visit_date, memo
         FROM participants
         ORDER BY name
     """)
@@ -195,7 +195,7 @@ def get_session_participants(session_id: int) -> List[Dict]:
     
     cursor.execute("""
         SELECT p.name, p.birth_date, p.gender, p.job, p.mbti, p.phone,
-               a.attendance_id, a.payment_status
+               p.location, p.signup_route, a.attendance_id, a.payment_status
         FROM attendance a
         JOIN participants p ON a.participant_name = p.name 
                             AND a.participant_birth = p.birth_date
@@ -326,8 +326,8 @@ def get_recommendations(session_id: int, gender: str,
             params.append(birth_year_min)
     
     if mbti:
-        query += " AND mbti = ?"
-        params.append(mbti)
+        query += " AND mbti LIKE ?"
+        params.append(f"%{mbti}%")
     
     cursor.execute(query, params)
     candidates = [dict(row) for row in cursor.fetchall()]

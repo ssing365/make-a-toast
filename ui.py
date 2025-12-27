@@ -10,7 +10,7 @@ class MakeToastApp:
     def __init__(self, root):
         self.root = root
         self.root.title("메이크어토스트 참가 인원 지정 프로그램")
-        self.root.geometry("1200x700")
+        self.root.geometry("1600x800")
         
         # 탭 생성
         self.notebook = ttk.Notebook(root)
@@ -77,20 +77,24 @@ class MakeToastApp:
         male_label_frame = ttk.LabelFrame(left_frame, text="남자 참가자")
         male_label_frame.pack(fill='both', expand=True)
         
-        columns = ('name', 'birth_date', 'job', 'mbti', 'phone')
+        columns = ('name', 'birth_date', 'job', 'mbti', 'phone', 'location', 'signup_route')
         self.male_tree = ttk.Treeview(male_label_frame, columns=columns, show='headings', height=15)
         
         self.male_tree.heading('name', text='이름')
-        self.male_tree.heading('birth_date', text='생년월일')
+        self.male_tree.heading('birth_date', text='출생년도')
         self.male_tree.heading('job', text='직업')
         self.male_tree.heading('mbti', text='MBTI')
         self.male_tree.heading('phone', text='전화번호')
+        self.male_tree.heading('location', text='사는곳')
+        self.male_tree.heading('signup_route', text='등록경로')
         
-        self.male_tree.column('name', width=80)
-        self.male_tree.column('birth_date', width=90)
-        self.male_tree.column('job', width=100)
-        self.male_tree.column('mbti', width=60)
-        self.male_tree.column('phone', width=120)
+        self.male_tree.column('name', width=70)
+        self.male_tree.column('birth_date', width=70)
+        self.male_tree.column('job', width=80)
+        self.male_tree.column('mbti', width=50)
+        self.male_tree.column('phone', width=100)
+        self.male_tree.column('location', width=80)
+        self.male_tree.column('signup_route', width=80)
         
         male_scrollbar = ttk.Scrollbar(male_label_frame, orient='vertical', command=self.male_tree.yview)
         self.male_tree.configure(yscrollcommand=male_scrollbar.set)
@@ -111,16 +115,20 @@ class MakeToastApp:
         self.female_tree = ttk.Treeview(female_label_frame, columns=columns, show='headings', height=15)
         
         self.female_tree.heading('name', text='이름')
-        self.female_tree.heading('birth_date', text='생년월일')
+        self.female_tree.heading('birth_date', text='출생년도')
         self.female_tree.heading('job', text='직업')
         self.female_tree.heading('mbti', text='MBTI')
         self.female_tree.heading('phone', text='전화번호')
+        self.female_tree.heading('location', text='사는곳')
+        self.female_tree.heading('signup_route', text='등록경로')
         
-        self.female_tree.column('name', width=80)
-        self.female_tree.column('birth_date', width=90)
-        self.female_tree.column('job', width=100)
-        self.female_tree.column('mbti', width=60)
-        self.female_tree.column('phone', width=120)
+        self.female_tree.column('name', width=70)
+        self.female_tree.column('birth_date', width=70)
+        self.female_tree.column('job', width=80)
+        self.female_tree.column('mbti', width=50)
+        self.female_tree.column('phone', width=100)
+        self.female_tree.column('location', width=80)
+        self.female_tree.column('signup_route', width=80)
         
         female_scrollbar = ttk.Scrollbar(female_label_frame, orient='vertical', command=self.female_tree.yview)
         self.female_tree.configure(yscrollcommand=female_scrollbar.set)
@@ -166,23 +174,27 @@ class MakeToastApp:
         male_frame = ttk.LabelFrame(list_container, text="남자")
         male_frame.pack(side='left', fill='both', expand=True, padx=5)
         
-        columns = ('name', 'birth_date', 'job', 'mbti', 'phone', 'visit_count')
+        columns = ('name', 'birth_date', 'job', 'mbti', 'phone', 'location', 'signup_route', 'visit_count')
         self.participant_male_tree = ttk.Treeview(male_frame, 
                                             columns=columns, show='headings')
         
         self.participant_male_tree.heading('name', text='이름')
-        self.participant_male_tree.heading('birth_date', text='생년월일')
+        self.participant_male_tree.heading('birth_date', text='출생년도')
         self.participant_male_tree.heading('job', text='직업')
         self.participant_male_tree.heading('mbti', text='MBTI')
         self.participant_male_tree.heading('phone', text='전화번호')
+        self.participant_male_tree.heading('location', text='사는곳')
+        self.participant_male_tree.heading('signup_route', text='등록경로')
         self.participant_male_tree.heading('visit_count', text='방문횟수')
         
-        self.participant_male_tree.column('name', width=80)
-        self.participant_male_tree.column('birth_date', width=100)
-        self.participant_male_tree.column('job', width=100)
-        self.participant_male_tree.column('mbti', width=60)
-        self.participant_male_tree.column('phone', width=120)
-        self.participant_male_tree.column('visit_count', width=80)
+        self.participant_male_tree.column('name', width=70)
+        self.participant_male_tree.column('birth_date', width=70)
+        self.participant_male_tree.column('job', width=80)
+        self.participant_male_tree.column('mbti', width=50)
+        self.participant_male_tree.column('phone', width=100)
+        self.participant_male_tree.column('location', width=70)
+        self.participant_male_tree.column('signup_route', width=70)
+        self.participant_male_tree.column('visit_count', width=60)
         
         male_scrollbar = ttk.Scrollbar(male_frame, orient='vertical', 
                                  command=self.participant_male_tree.yview)
@@ -202,18 +214,22 @@ class MakeToastApp:
                                             columns=columns, show='headings')
         
         self.participant_female_tree.heading('name', text='이름')
-        self.participant_female_tree.heading('birth_date', text='생년월일')
+        self.participant_female_tree.heading('birth_date', text='출생년도')
         self.participant_female_tree.heading('job', text='직업')
         self.participant_female_tree.heading('mbti', text='MBTI')
         self.participant_female_tree.heading('phone', text='전화번호')
+        self.participant_female_tree.heading('location', text='사는곳')
+        self.participant_female_tree.heading('signup_route', text='등록경로')
         self.participant_female_tree.heading('visit_count', text='방문횟수')
         
-        self.participant_female_tree.column('name', width=80)
-        self.participant_female_tree.column('birth_date', width=100)
-        self.participant_female_tree.column('job', width=100)
-        self.participant_female_tree.column('mbti', width=60)
-        self.participant_female_tree.column('phone', width=120)
-        self.participant_female_tree.column('visit_count', width=80)
+        self.participant_female_tree.column('name', width=70)
+        self.participant_female_tree.column('birth_date', width=70)
+        self.participant_female_tree.column('job', width=80)
+        self.participant_female_tree.column('mbti', width=50)
+        self.participant_female_tree.column('phone', width=100)
+        self.participant_female_tree.column('location', width=70)
+        self.participant_female_tree.column('signup_route', width=70)
+        self.participant_female_tree.column('visit_count', width=60)
         
         female_scrollbar = ttk.Scrollbar(female_frame, orient='vertical', 
                                  command=self.participant_female_tree.yview)
@@ -282,25 +298,29 @@ class MakeToastApp:
         
         # 추천 결과 리스트
         columns = ('name', 'birth_date', 'job', 'mbti', 'phone',
-                  'last_visit', 'visit_count')
+                  'location', 'signup_route', 'last_visit', 'visit_count')
         self.recommend_tree = ttk.Treeview(self.recommend_frame, 
                                           columns=columns, show='headings')
         
         self.recommend_tree.heading('name', text='이름')
-        self.recommend_tree.heading('birth_date', text='생년월일')
+        self.recommend_tree.heading('birth_date', text='출생년도')
         self.recommend_tree.heading('job', text='직업')
         self.recommend_tree.heading('mbti', text='MBTI')
         self.recommend_tree.heading('phone', text='전화번호')
+        self.recommend_tree.heading('location', text='사는곳')
+        self.recommend_tree.heading('signup_route', text='등록경로')
         self.recommend_tree.heading('last_visit', text='최근방문')
         self.recommend_tree.heading('visit_count', text='방문횟수')
         
-        self.recommend_tree.column('name', width=100)
-        self.recommend_tree.column('birth_date', width=100)
-        self.recommend_tree.column('job', width=120)
-        self.recommend_tree.column('mbti', width=80)
-        self.recommend_tree.column('phone', width=130)
-        self.recommend_tree.column('last_visit', width=100)
-        self.recommend_tree.column('visit_count', width=100)
+        self.recommend_tree.column('name', width=70)
+        self.recommend_tree.column('birth_date', width=70)
+        self.recommend_tree.column('job', width=80)
+        self.recommend_tree.column('mbti', width=50)
+        self.recommend_tree.column('phone', width=100)
+        self.recommend_tree.column('location', width=70)
+        self.recommend_tree.column('signup_route', width=70)
+        self.recommend_tree.column('last_visit', width=80)
+        self.recommend_tree.column('visit_count', width=70)
         
         scrollbar = ttk.Scrollbar(self.recommend_frame, orient='vertical', 
                                  command=self.recommend_tree.yview)
@@ -335,6 +355,9 @@ class MakeToastApp:
             
         sessions = db.get_all_sessions()
         selected_idx = self.session_combo.current()
+        if selected_idx < 0 or selected_idx >= len(sessions):
+            return
+            
         session = sessions[selected_idx]
         
         self.current_session_id = session['session_id']
@@ -361,7 +384,9 @@ class MakeToastApp:
         participants = db.get_session_participants(self.current_session_id)
         
         for p in participants:
-            values = (p['name'], p['birth_date'], p['job'], p['mbti'], p['phone'])
+            birth_year = p['birth_date'][:4]
+            values = (p['name'], birth_year, p['job'], p['mbti'], p['phone'], 
+                     p['location'] or '', p['signup_route'] or '')
             tags = (p['name'], p['birth_date'])
             
             if p['gender'] == 'M':
@@ -444,6 +469,7 @@ class MakeToastApp:
                 messagebox.showinfo("성공", "회차가 생성되었습니다!")
                 dialog.destroy()
                 self.refresh_sessions()
+                self.refresh_recommend_sessions()
             except Exception as e:
                 messagebox.showerror("오류", f"회차 생성 실패: {e}")
         
@@ -652,9 +678,10 @@ class MakeToastApp:
         
         for p in participants:
             detail = db.get_participant_detail(p['name'], p['birth_date'])
+            birth_year = p['birth_date'][:4]
             
-            values = (p['name'], p['birth_date'], p['job'], p['mbti'], 
-                     p['phone'], detail['visit_count'])
+            values = (p['name'], birth_year, p['job'], p['mbti'], 
+                     p['phone'], p['location'] or '', p['signup_route'] or '', detail['visit_count'])
             tags = (p['name'], p['birth_date'])
             
             if p['gender'] == 'M':
@@ -676,9 +703,10 @@ class MakeToastApp:
         for p in participants:
             if search_term in p['name'].lower() or search_term in (p['job'] or '').lower():
                 detail = db.get_participant_detail(p['name'], p['birth_date'])
+                birth_year = p['birth_date'][:4]
                 
-                values = (p['name'], p['birth_date'], p['job'], p['mbti'],
-                         p['phone'], detail['visit_count'])
+                values = (p['name'], birth_year, p['job'], p['mbti'],
+                         p['phone'], p['location'] or '', p['signup_route'] or '', detail['visit_count'])
                 tags = (p['name'], p['birth_date'])
                 
                 if p['gender'] == 'M':
@@ -805,11 +833,11 @@ class MakeToastApp:
             self.recommend_tree.delete(item)
         
         for p in self.recommendations:
-            birth_year = int(p['birth_date'][:4])
-            age = datetime.now().year - birth_year + 1
+            birth_year = p['birth_date'][:4]
             
             self.recommend_tree.insert('', 'end',
-                                      values=(p['name'], p['birth_date'],p['job'], p['mbti'], p['phone'],
+                                      values=(p['name'], birth_year, p['job'], p['mbti'], p['phone'],
+                                             p['location'] or '', p['signup_route'] or '', 
                                              p['last_visit'] or '-', p['visit_count']),
                                       tags=(p['name'], p['birth_date']))
         
@@ -858,15 +886,26 @@ class MakeToastApp:
         info_text = f"""
 이름: {detail['name']}
 성별: {detail['gender']}
-나이: {age}세 ({detail['birth_date']})
+나이: {age}세 ({birth_year})
 직업: {detail['job']}
 MBTI: {detail['mbti']}
 전화번호: {detail['phone']}
+사는곳: {detail['location'] or '미기입'}
+등록경로: {detail['signup_route'] or '미기입'}
 첫 방문: {detail['first_visit_date']}
 총 방문횟수: {detail['visit_count']}회
         """
         
         ttk.Label(info_frame, text=info_text, justify='left').pack(padx=10, pady=10)
+        
+        # 자기소개
+        intro_frame = ttk.LabelFrame(window, text="자기소개")
+        intro_frame.pack(fill='x', padx=10, pady=5)
+        
+        intro_text = tk.Text(intro_frame, height=3)
+        intro_text.pack(fill='both', expand=True, padx=5, pady=5)
+        intro_text.insert('1.0', detail['intro'] or '-')
+        intro_text.config(state='disabled')
         
         # 매칭 이력
         history_frame = ttk.LabelFrame(window, text="매칭 이력")
