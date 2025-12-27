@@ -31,7 +31,7 @@ class SessionTab:
         
         ttk.Label(top_frame, text="회차 선택:").pack(side=LEFT, padx=5)
         
-        self.session_combo = ttk.Combobox(top_frame, width=40, state='readonly')
+        self.session_combo = ttk.Combobox(top_frame, width=60, state='readonly')
         self.session_combo.pack(side=LEFT, padx=5)
         self.session_combo.bind('<<ComboboxSelected>>', self.on_session_selected)
         
@@ -69,7 +69,7 @@ class SessionTab:
         male_label_frame.pack(fill=BOTH, expand=False, padx=0, pady=0)
         
         columns = ('name', 'birth_date', 'job', 'mbti', 'phone', 'location', 'signup_route')
-        self.male_tree = ttk.Treeview(male_label_frame, columns=columns, show='headings', height=8)
+        self.male_tree = ttk.Treeview(male_label_frame, columns=columns, show='headings', height=8, bootstyle="primary")
         
         self.male_tree.heading('name', text='이름')
         self.male_tree.heading('birth_date', text='출생년도')
@@ -79,9 +79,9 @@ class SessionTab:
         self.male_tree.heading('location', text='사는곳')
         self.male_tree.heading('signup_route', text='등록경로')
         
-        self.male_tree.column('name', width=70)
-        self.male_tree.column('birth_date', width=70)
-        self.male_tree.column('job', width=80)
+        self.male_tree.column('name', width=50)
+        self.male_tree.column('birth_date', width=40)
+        self.male_tree.column('job', width=100)
         self.male_tree.column('mbti', width=50)
         self.male_tree.column('phone', width=100)
         self.male_tree.column('location', width=80)
@@ -107,7 +107,7 @@ class SessionTab:
         female_label_frame = ttk.Labelframe(right_frame, text="여자 참가자")
         female_label_frame.pack(fill=BOTH, expand=False, padx=0, pady=0)
         
-        self.female_tree = ttk.Treeview(female_label_frame, columns=columns, show='headings', height=8)
+        self.female_tree = ttk.Treeview(female_label_frame, columns=columns, show='headings', height=8, bootstyle="primary")
         
         self.female_tree.heading('name', text='이름')
         self.female_tree.heading('birth_date', text='출생년도')
@@ -117,9 +117,9 @@ class SessionTab:
         self.female_tree.heading('location', text='사는곳')
         self.female_tree.heading('signup_route', text='등록경로')
         
-        self.female_tree.column('name', width=70)
-        self.female_tree.column('birth_date', width=70)
-        self.female_tree.column('job', width=80)
+        self.female_tree.column('name', width=50)
+        self.female_tree.column('birth_date', width=40)
+        self.female_tree.column('job', width=100)
         self.female_tree.column('mbti', width=50)
         self.female_tree.column('phone', width=100)
         self.female_tree.column('location', width=80)
@@ -145,7 +145,7 @@ class SessionTab:
         check_frame = ttk.Frame(self.parent)
         check_frame.pack(side='bottom', pady=10)
         
-        ttk.Button(check_frame, text="🔍 중복 체크", bootstyle=SECONDARY,
+        ttk.Button(check_frame, text="🔍 중복 체크", bootstyle=WARNING,
                   command=self.check_duplicates, width=20).pack()
         
         # 초기 데이터 로드

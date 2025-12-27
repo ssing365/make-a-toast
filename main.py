@@ -5,7 +5,7 @@ from ui import MakeToastApp
 
 def main():
     """애플리케이션 시작"""
-    root = ttk.Window(themename="minty")
+    root = ttk.Window(themename="cosmo")
     app = MakeToastApp(root)
     root.mainloop()
 

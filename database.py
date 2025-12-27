@@ -3,8 +3,23 @@ from datetime import datetime
 from typing import List, Dict, Optional, Tuple
 import openpyxl
 import re
+import os
+import sys
 
-DB_NAME = "maketoast.db"
+# exe로 실행될 때와 python으로 실행될 때 모두 작동하도록 경로 설정
+if getattr(sys, 'frozen', False):
+    # PyInstaller로 빌드된 exe 실행 시
+    # _MEIPASS는 PyInstaller 임시 폴더 (리소스들이 압축 해제되는 곳)
+    if hasattr(sys, '_MEIPASS'):
+        BASE_DIR = sys._MEIPASS
+    else:
+        # 대체 방법: 현재 작업 디렉토리 사용
+        BASE_DIR = os.getcwd()
+else:
+    # Python 스크립트 실행 시
+    BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+
+DB_NAME = os.path.join(BASE_DIR, "maketoast.db")
 
 def get_connection():
     """DB 연결"""

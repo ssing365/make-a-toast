@@ -34,7 +34,7 @@ class RecommendTab:
         row1.pack(fill='x', padx=10, pady=5)
         
         ttk.Label(row1, text="회차:").pack(side='left', padx=5)
-        self.recommend_session_combo = ttk.Combobox(row1, width=30, state='readonly')
+        self.recommend_session_combo = ttk.Combobox(row1, width=60, state='readonly')
         self.recommend_session_combo.pack(side='left', padx=5)
         
         ttk.Label(row1, text="성별:").pack(side='left', padx=(20, 5))
@@ -80,7 +80,7 @@ class RecommendTab:
         columns = ('name', 'birth_date', 'job', 'mbti', 'phone',
                   'location', 'signup_route', 'last_visit', 'visit_count')
         self.recommend_tree = ttk.Treeview(self.parent, 
-                                          columns=columns, show='headings')
+                                          columns=columns, show='headings', bootstyle="primary")
         
         self.recommend_tree.heading('name', text='이름')
         self.recommend_tree.heading('birth_date', text='출생년도')
@@ -92,13 +92,13 @@ class RecommendTab:
         self.recommend_tree.heading('last_visit', text='최근방문')
         self.recommend_tree.heading('visit_count', text='방문횟수')
         
-        self.recommend_tree.column('name', width=70)
-        self.recommend_tree.column('birth_date', width=70)
-        self.recommend_tree.column('job', width=80)
+        self.recommend_tree.column('name', width=50)
+        self.recommend_tree.column('birth_date', width=40)
+        self.recommend_tree.column('job', width=90)
         self.recommend_tree.column('mbti', width=50)
         self.recommend_tree.column('phone', width=100)
-        self.recommend_tree.column('location', width=70)
-        self.recommend_tree.column('signup_route', width=70)
+        self.recommend_tree.column('location', width=80)
+        self.recommend_tree.column('signup_route', width=50)
         self.recommend_tree.column('last_visit', width=80)
         self.recommend_tree.column('visit_count', width=70)
         

@@ -12,7 +12,7 @@ class MakeToastApp:
     def __init__(self, root):
         self.root = root
         self.root.title("Make a Toast")
-        self.root.geometry("1600x900")
+        self.root.geometry("1800x1000")
         
         # 탭 생성
         self.notebook = ttk.Notebook(root)

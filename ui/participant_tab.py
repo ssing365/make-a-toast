@@ -40,7 +40,7 @@ class ParticipantTab:
         
         columns = ('name', 'birth_date', 'job', 'mbti', 'phone', 'location', 'signup_route', 'visit_count')
         self.participant_male_tree = ttk.Treeview(self.male_frame, 
-                                            columns=columns, show='headings')
+                                            columns=columns, show='headings', bootstyle="primary")
         
         self.participant_male_tree.heading('name', text='이름')
         self.participant_male_tree.heading('birth_date', text='출생년도')
@@ -75,7 +75,7 @@ class ParticipantTab:
         self.female_frame.pack(side='left', fill='both', expand=True, padx=5)
         
         self.participant_female_tree = ttk.Treeview(self.female_frame, 
-                                            columns=columns, show='headings')
+                                            columns=columns, show='headings', bootstyle="primary")
         
         self.participant_female_tree.heading('name', text='이름')
         self.participant_female_tree.heading('birth_date', text='출생년도')
