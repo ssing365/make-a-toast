@@ -184,22 +184,28 @@ def render_participant_table(participants, gender_code):
         st.info("참가자가 없습니다.")
         return
 
+    # 데이터 가공
     data = []
     for p in participants:
+        # 📝 메모가 있으면 이름 옆에 아이콘 표시
+        memo_mark = " 📝" if p.get('memo') and str(p['memo']).strip() else ""
+        
         data.append({
-            '이름': p['name'],
-            '년생': p['birth_date'][:4],
+            '이름': f"{p['name']}{memo_mark}",
+            '출생년도': p['birth_date'][:4],
             '직업': p['job'],
             'MBTI': p['mbti'],
             '지역': p['location'],
-            '_full_data': p
+            '_full_data': p 
         })
     
     df = pd.DataFrame(data)
+
     event = st.dataframe(
         df.drop(columns=['_full_data']),
         use_container_width=True,
         height=300,
+        hide_index=True,
         selection_mode="single-row",
         on_select="rerun",
         key=f"table_{gender_code}"
@@ -252,10 +258,26 @@ def show_detail_dialog(name, birth_date):
         st.error("정보를 찾을 수 없습니다.")
         return
 
-    st.subheader(f"{detail['name']} ({detail['birth_date'][:4]})")
+    birth_year = detail['birth_date'][:4]
+    
+    st.subheader(f"{detail['name']} ({birth_year})")
+    
+    st.markdown("---") # 구분선 추가로 더 깔끔하게
+
     c1, c2 = st.columns(2)
-    c1.markdown(f"**직업:** {detail['job']}\n\n**MBTI:** {detail['mbti']}\n\n**지역:** {detail['location']}")
-    c2.markdown(f"**전화:** {detail['phone']}\n\n**방문:** {detail['visit_count']}회\n\n**첫방문:** {detail['first_visit_date']}")
+    
+    # 💡 수정 포인트: 한 줄씩 따로 써야 줄바꿈과 정렬이 확실하게 됩니다.
+    with c1:
+        st.markdown(f"**출생년도:** {birth_year}")
+        st.markdown(f"**직업:** {detail['job']}")
+        st.markdown(f"**MBTI:** {detail['mbti']}")
+        st.markdown(f"**지역:** {detail['location']}")
+    
+    with c2:
+        st.markdown(f"**전화:** {detail['phone']}")
+        st.markdown(f"**방문:** {detail['visit_count']}회")
+        st.markdown(f"**첫방문:** {detail['first_visit_date']}")
+        st.markdown(f"**경로:** {detail['signup_route']}")
     
     st.markdown("---")
     st.markdown("**📝 메모**")
@@ -289,13 +311,18 @@ def check_duplicates(session_id):
 def render_participant_tab():
     st.header("참가자 DB")
     
-    search = st.text_input("검색 (이름, 직업)", placeholder="엔터키를 누르면 검색됩니다.")
+    # 검색어를 session_state에 저장하지 않으면 입력하다가 날아갈 수 있음
+    if 'db_search_term' not in st.session_state:
+        st.session_state.db_search_term = ""
+
+    # 검색 입력창
+    search = st.text_input("검색 (이름, 직업)", value=st.session_state.db_search_term, placeholder="엔터키를 누르면 검색됩니다.")
+    st.session_state.db_search_term = search # 입력값 유지
     
     all_p = db.get_all_participants()
     if search:
         all_p = [p for p in all_p if search in p['name'] or (p['job'] and search in p['job'])]
 
-    # 🔥 [복구 완료] 좌우 분할하여 표시
     males = [p for p in all_p if p['gender'] == 'M']
     females = [p for p in all_p if p['gender'] == 'F']
 
@@ -316,9 +343,47 @@ def render_db_table(participants, key_suffix):
 
     data = []
     for p in participants:
+        # 📝 메모 표시 복구
+        memo_mark = " 📝" if p.get('memo') and str(p['memo']).strip() else ""
+        
+        data.append({
+            '이름': f"{p['name']}{memo_mark}",
+            '출생년도': p['birth_date'][:4],
+            '직업': p['job'],
+            'MBTI': p['mbti'],
+            '지역': p['location'],
+            '_full': p
+        })
+    
+    df = pd.DataFrame(data)
+    event = st.dataframe(
+        df.drop(columns=['_full']), 
+        use_container_width=True, 
+        height=600, 
+        hide_index=True,
+        on_select="rerun", 
+        selection_mode="single-row",
+        key=f"table_{key_suffix}"
+    )
+
+    if event.selection.rows:
+        sel = df.iloc[event.selection.rows[0]]['_full']
+        c1, c2 = st.columns(2)
+        if c1.button("상세 정보", key=f"d_det_{key_suffix}"):
+            show_detail_dialog(sel['name'], sel['birth_date'])
+        if c2.button("영구 삭제", type="primary", key=f"d_del_{key_suffix}"):
+            delete_participant_dialog(sel)
+
+def render_db_table(participants, key_suffix):
+    if not participants:
+        st.info("데이터가 없습니다.")
+        return
+
+    data = []
+    for p in participants:
         data.append({
             '이름': p['name'],
-            '생년': p['birth_date'][:4],
+            '출생년도': p['birth_date'][:4],
             '직업': p['job'],
             'MBTI': p['mbti'],
             '지역': p['location'],
@@ -357,6 +422,10 @@ def delete_participant_dialog(p):
 def render_recommend_tab():
     st.header("참가자 추천")
     
+    # 1. 세션 상태에 결과 저장소 만들기
+    if 'recommend_results' not in st.session_state:
+        st.session_state.recommend_results = None
+    
     sessions = db.get_all_sessions()
     opts = [f"{s['session_date']} - {s['theme']}" for s in sessions]
     
@@ -367,35 +436,66 @@ def render_recommend_tab():
     else:
         c1.selectbox("회차", ["없음"])
         return
+
+    f1, f2, f3 = st.columns(3)
+    birth_min = f1.text_input("최소 생년 (예: 1990)")
+    birth_max = f2.text_input("최대 생년 (예: 2000)")
+    mbti_filter = f3.text_input("MBTI 검색 (예: E, I)")
+
+    sort_option = st.radio("정렬 기준", ["최근 방문일 순", "방문 횟수 순"], horizontal=True)
     
-    if c1.button("추천 검색 실행", type="primary"):
+    # 2. 버튼 누르면 -> 결과를 session_state에 저장
+    if st.button("추천 검색 실행", type="primary", use_container_width=True):
         sid = sessions[sel_idx]['session_id']
-        recs = db.get_recommendations(sid, gender)
+        curr_year = datetime.now().year
+        age_min, age_max = None, None
+        if birth_max: age_min = curr_year - int(birth_max)
+        if birth_min: age_max = curr_year - int(birth_min)
+
+        # DB 조회 결과를 세션에 저장 (화면이 깜빡여도 유지됨)
+        st.session_state.recommend_results = db.get_recommendations(sid, gender, age_min, age_max, mbti_filter)
         
-        if not recs:
+        if not st.session_state.recommend_results:
             st.info("조건에 맞는 추천 대상이 없습니다.")
+
+    # 3. 결과가 저장되어 있으면 표 그리기 (버튼 밖에서 실행)
+    if st.session_state.recommend_results:
+        recs = st.session_state.recommend_results # 저장된 데이터 불러오기
+        
+        # 정렬 적용
+        if sort_option == "최근 방문일 순":
+            recs.sort(key=lambda x: x['last_visit'] or '', reverse=True)
         else:
             recs.sort(key=lambda x: x['visit_count'], reverse=True)
-            
-            data = []
-            for r in recs:
-                data.append({
-                    '이름': r['name'],
-                    '나이': f"{datetime.now().year - int(r['birth_date'][:4])}세",
-                    '직업': r['job'],
-                    'MBTI': r['mbti'],
-                    '방문': f"{r['visit_count']}회",
-                    '마지막': r['last_visit'],
-                    '_full': r
-                })
-            
-            df = pd.DataFrame(data)
-            event = st.dataframe(df.drop(columns=['_full']), use_container_width=True, on_select="rerun", selection_mode="single-row")
-            
-            if event.selection.rows:
-                sel = df.iloc[event.selection.rows[0]]['_full']
-                if st.button("상세 정보 보기"):
-                    show_detail_dialog(sel['name'], sel['birth_date'])
+        
+        data = []
+        for r in recs:
+            memo_mark = " 📝" if r.get('memo') and str(r['memo']).strip() else ""
+            data.append({
+                '이름': f"{r['name']}{memo_mark}",
+                '출생년도': r['birth_date'][:4],
+                '직업': r['job'],
+                'MBTI': r['mbti'],
+                '방문': f"{r['visit_count']}회",
+                '마지막': r['last_visit'],
+                '_full': r
+            })
+        
+        df = pd.DataFrame(data)
+        
+        # 4. 표 그리기 (이제 클릭해도 안 사라짐!)
+        event = st.dataframe(
+            df.drop(columns=['_full']), 
+            use_container_width=True, 
+            hide_index=True,
+            on_select="rerun", 
+            selection_mode="single-row"
+        )
+        
+        if event.selection.rows:
+            sel = df.iloc[event.selection.rows[0]]['_full']
+            if st.button("상세 정보 보기", use_container_width=True):
+                show_detail_dialog(sel['name'], sel['birth_date'])
 
 if __name__ == "__main__":
     db.init_db()
