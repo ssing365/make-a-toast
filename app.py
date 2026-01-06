@@ -5,6 +5,7 @@ from datetime import datetime
 import pandas as pd
 import tempfile
 import os
+import re
 
 # 페이지 설정
 st.set_page_config(
@@ -497,6 +498,44 @@ def render_recommend_tab():
             if st.button("상세 정보 보기", use_container_width=True):
                 show_detail_dialog(sel['name'], sel['birth_date'])
 
+def check_password():
+    """비밀번호 체크 함수 (엔터키 지원 + 대소문자 무시 + 한글 감지)"""
+    if 'authenticated' not in st.session_state:
+        st.session_state.authenticated = False
+    
+    if st.session_state.authenticated:
+        return True
+    
+    # 로그인 화면
+    col1, col2, col3 = st.columns([1, 2, 1])
+    with col2:
+        st.markdown("### 🔒 접속 권한 확인")
+        
+        # 💡 [핵심] st.form으로 감싸면 엔터키가 먹힙니다!
+        with st.form(key="login_form"):
+            password = st.text_input("비밀번호를 입력하세요", type="password")
+            
+            # 폼 제출 버튼 (엔터 치면 이 버튼이 눌린 효과)
+            submit_button = st.form_submit_button("접속하기", type="primary", use_container_width=True)
+            
+            if submit_button:
+                # 1. 한글 입력 감지
+                if re.search('[가-힣]', password):
+                    st.warning("⚠️ 한글 키가 켜져 있습니다. 영문으로 변경해주세요.")
+                
+                # 2. 대소문자 무시하고 비밀번호 체크
+                elif password.lower() == "meto":
+                    st.session_state.authenticated = True
+                    st.rerun()
+                else:
+                    st.error("비밀번호가 틀렸습니다.")
+                    
+    return False
+
 if __name__ == "__main__":
+    # 데이터베이스 초기화
     db.init_db()
-    main()
+    
+    # 비밀번호가 맞을 때만 main() 실행
+    if check_password():
+        main()
