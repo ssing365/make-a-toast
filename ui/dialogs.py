@@ -71,7 +71,7 @@ class AddParticipantDialog:
         
         # 출생년도는 4자리 숫자만 허용
         if not birth_year.isdigit() or len(birth_year) != 4:
-            messagebox.showerror("오류", "출생년도는 4자리 숫자만 입력 가능합니다! (예: 2000)")
+            messagebox.showerror("오류", "출생년도는 4자리 숫자만 입력 가능합니다! (예: 1990)")
             return
         
         birth_date = f"{birth_year}-01-01"

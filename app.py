@@ -44,7 +44,7 @@ def main():
 # 1. 회차 관리 탭
 # ---------------------------------------------------------
 def render_session_tab():
-    st.header("회차 관리")
+    st.subheader("회차 관리")
     
     # 상단 액션 바
     col1, col2, col3, col4, col5 = st.columns([3, 1, 1, 1, 1])
@@ -94,12 +94,17 @@ def render_session_tab():
 def create_session_dialog():
     with st.form("create_session_form"):
         session_date = st.date_input("날짜")
-        session_time = st.text_input("시간대 (예: 19:30)", value="19:30")
+        session_time = st.text_input("시간대", value="19:30")
         
         # 🔥 [복구 완료] 드롭다운 메뉴 복구
         theme = st.selectbox(
             "주제",
-            ['운동 좋아하는 사람들', 'MBTI I들의 모임', 'MBTI E들의 모임', '결혼', '기타']
+            [ '❤️결혼을 전제로❤️ 진지하고 섬세한 미팅', 
+             '#오운완 ❤️운동하는남녀❤️를 위해 준비한 미팅 ', 
+             '❤️MBTI-E❤️를 위해 준비한 아주 섬세한 미팅',
+             '❤️MBTI-I❤️를 위해 준비한 아주 섬세한 미팅',
+             '❤️MBTI-N❤️을 위해 준비한 아주 섬세한 미팅 ',
+              '❤️MBTI-S❤️를 위해 준비한 아주 섬세한 미팅', '기타']
         )
         
         # '기타' 선택 시 직접 입력창 보여주기 (옵션)
@@ -310,7 +315,7 @@ def check_duplicates(session_id):
 # 2. 참가자 DB 탭 (UI 복구: 좌우 분할)
 # ---------------------------------------------------------
 def render_participant_tab():
-    st.header("참가자 DB")
+    st.subheader("참가자 DB")
     
     # 검색어를 session_state에 저장하지 않으면 입력하다가 날아갈 수 있음
     if 'db_search_term' not in st.session_state:
@@ -421,7 +426,7 @@ def delete_participant_dialog(p):
 # 3. 추천 탭
 # ---------------------------------------------------------
 def render_recommend_tab():
-    st.header("참가자 추천")
+    st.subheader("참가자 추천")
     
     # 1. 세션 상태에 결과 저장소 만들기
     if 'recommend_results' not in st.session_state:
@@ -439,9 +444,9 @@ def render_recommend_tab():
         return
 
     f1, f2, f3 = st.columns(3)
-    birth_min = f1.text_input("최소 생년 (예: 1990)")
-    birth_max = f2.text_input("최대 생년 (예: 2000)")
-    mbti_filter = f3.text_input("MBTI 검색 (예: E, I)")
+    birth_min = f1.text_input("최소 출생년도 (예: 1980)")
+    birth_max = f2.text_input("최대 출생년도 (예: 1990)")
+    mbti_filter = f3.text_input("MBTI 검색 (예: E, I, N)")
 
     sort_option = st.radio("정렬 기준", ["최근 방문일 순", "방문 횟수 순"], horizontal=True)
     
