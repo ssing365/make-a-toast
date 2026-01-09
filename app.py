@@ -10,7 +10,7 @@ import re
 # 페이지 설정
 st.set_page_config(
     page_title="Make a Toast",
-    page_icon="🍞",
+    page_icon="🍷",
     layout="wide",
     initial_sidebar_state="expanded"
 )
@@ -25,20 +25,20 @@ if 'db_cache_version' not in st.session_state:
 
 def main():
     """메인 애플리케이션"""
-    st.title("🍞 Make a Toast")
+    st.title("🍷 Make a Toast")
     st.markdown("---")
     
     # 탭 생성
-    tab1, tab2, tab3 = st.tabs(["회차 관리", "참가자 DB", "추천"])
+    tab1, tab2, tab3 = st.tabs(["회차 관리", "추천", "참가자 DB"])
     
     with tab1:
         render_session_tab()
     
     with tab2:
-        render_participant_tab()
+        render_recommend_tab()
     
     with tab3:
-        render_recommend_tab()
+        render_participant_tab()
 
 # ---------------------------------------------------------
 # 1. 회차 관리 탭
@@ -524,7 +524,7 @@ def check_password():
                     st.warning("⚠️ 한글 키가 켜져 있습니다. 영문으로 변경해주세요.")
                 
                 # 2. 대소문자 무시하고 비밀번호 체크
-                elif password.lower() == "meto":
+                elif password.lower() == st.secrets["general"]["APP_PASSWORD"]:
                     st.session_state.authenticated = True
                     st.rerun()
                 else:
