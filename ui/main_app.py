@@ -37,7 +37,7 @@ class MakeToastApp:
         
         # 나머지 탭들 추가
         self.notebook.add(self.participant_frame, text="참가자 DB")
-        self.notebook.add(self.recommend_frame, text="추천")
+        self.notebook.add(self.recommend_frame, text="참가자 추천")
     
     def on_session_changed(self, session_id):
         """회차가 변경되었을 때 콜백"""

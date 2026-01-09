@@ -26,10 +26,9 @@ if 'db_cache_version' not in st.session_state:
 def main():
     """메인 애플리케이션"""
     st.title("🍷 Make a Toast")
-    st.markdown("---")
     
     # 탭 생성
-    tab1, tab2, tab3 = st.tabs(["회차 관리", "추천", "참가자 DB"])
+    tab1, tab2, tab3 = st.tabs(["회차 관리", "참가자 추천", "참가자 DB"])
     
     with tab1:
         render_session_tab()
@@ -44,47 +43,85 @@ def main():
 # 1. 회차 관리 탭
 # ---------------------------------------------------------
 def render_session_tab():
-    st.subheader("회차 관리")
-    
-    # 상단 액션 바
-    col1, col2, col3, col4, col5 = st.columns([3, 1, 1, 1, 1])
-    
+    # CSS 스타일 주입
+    st.markdown("""
+    <style>
+        /* 1. 탭(Tab) 글씨 크기 키우기 */
+        .stTabs [data-baseweb="tab-list"] button [data-testid="stMarkdownContainer"] p {
+            font-size: 1.1rem !important;
+            font-weight: 500 !important;
+        }
+        
+        /* 2. 셀렉트 박스(Input 영역) 배경색 변경 */
+        /* 셀렉트 박스(Input 영역) 배경색 변경 */
+        div[data-baseweb="select"] > div {
+            background-color: #fff0eb !important; /* 연한 살구색 배경 */
+            border-color: #ffccbc !important;     /* 살구색 테두리 */
+        }
+
+        /* 마우스를 올렸을 때 테두리를 포인트 컬러(#ff4b4b)로 강조 */
+        div[data-baseweb="select"]:hover > div {
+            border-color: #ff4b4b !important;
+        }
+        
+        /* (선택사항) 버튼 높이를 셀렉트박스와 맞추기 위한 미세 조정 */
+        div[data-testid="column"] button {
+            height: 42px; /* 셀렉트박스 높이와 유사하게 */
+            padding: 0px 10px;
+        }
+        
+         /* 3. 버튼 내 글자 크기 및 여백 조절 */
+        div[data-testid="column"] button p {
+            font-size: 0.85rem !important; /* 글자 크기 축소 (기본은 보통 1rem) */
+            font-weight: 600 !important;   /* 가독성을 위해 약간 굵게 */
+        }
+
+        /* 버튼 자체의 패딩을 줄여서 글자가 잘 안 잘리게 함 */
+        div[data-testid="column"] button {
+            padding-left: 0.2rem !important;
+            padding-right: 0.2rem !important;
+        }
+    </style>
+    """, unsafe_allow_html=True)
+
     sessions = db.get_all_sessions()
-    session_options = [f"{s['session_date']} {s['session_time']} - {s['theme']}" for s in sessions]
-    
-    with col1:
+    session_options = [f"📅 {s['session_date']} {s['session_time']} | 주제: {s['theme']} | {s['host']}" for s in sessions]
+
+    # 💡 [레이아웃 변경] 7:1:1:1 비율로 분할 (셀렉트박스 길게, 버튼 짧게)
+    col_sel, col_add, col_del, col_imp = st.columns([7.2, 1.2, 1.2, 1.2])
+
+    # 1. 회차 선택 박스
+    with col_sel:
         if session_options:
             selected_idx = st.selectbox(
                 "회차 선택",
                 range(len(session_options)),
                 format_func=lambda x: session_options[x],
-                key="session_select"
+                key="session_select",
+                label_visibility="collapsed", # 라벨 숨김
             )
             if selected_idx is not None:
                 st.session_state.current_session_id = sessions[selected_idx]['session_id']
         else:
-            st.selectbox("회차 선택", ["회차가 없습니다"], disabled=True)
+            st.selectbox("회차 선택", ["회차가 없습니다"], disabled=True, label_visibility="collapsed")
             st.session_state.current_session_id = None
     
-    with col2:
-        if st.button("새 회차 생성", use_container_width=True):
+    # 2. 아이콘 버튼들 (help에 설명을 넣어 마우스 올리면 뜨게 함)
+    with col_add:
+        if st.button("회차 추가",  use_container_width=True):
             create_session_dialog()
             
-    with col3:
-        if st.button("회차 삭제", type="primary", use_container_width=True):
+    with col_del:
+        # 삭제는 위험하므로 type="primary"(빨간색) 유지
+        if st.button("회차 삭제", type="primary",  use_container_width=True):
             if st.session_state.current_session_id:
                 delete_session_dialog(st.session_state.current_session_id, sessions)
             else:
-                st.warning("삭제할 회차를 선택해주세요!")
+                st.warning("선택된 회차가 없습니다.")
                 
-    with col4:
-        if st.button("엑셀 임포트", use_container_width=True):
+    with col_imp:
+        if st.button("엑셀 넣기", use_container_width=True):
             import_excel_dialog()
-            
-    with col5:
-        if st.button("새로고침", use_container_width=True):
-            st.cache_data.clear()
-            st.rerun()
 
     # 현재 회차 정보 및 참가자 관리
     if st.session_state.current_session_id:
@@ -156,8 +193,6 @@ def render_current_session_info(sessions):
     curr = next((s for s in sessions if s['session_id'] == st.session_state.current_session_id), None)
     if not curr: return
 
-    st.info(f"📅 **{curr['session_date']}** {curr['session_time']} | 주제: **{curr['theme']}** | HOST: **{curr['host']}**")
-
     # 참가자 목록 가져오기
     participants = db.get_session_participants(curr['session_id'])
     
@@ -169,19 +204,18 @@ def render_current_session_info(sessions):
 
     # 남자 참가자 영역
     with col1:
-        st.subheader(f"남자 ({len(males)}명)")
+        st.markdown(f"##### 남자 ({len(males)}명)")
         render_participant_table(males, 'M')
         if st.button("남자 참가자 추가", key="add_m", use_container_width=True):
             add_participant_dialog('M', curr['session_id'])
 
     # 여자 참가자 영역
     with col2:
-        st.subheader(f"여자 ({len(females)}명)")
+        st.markdown(f"##### 여자 ({len(females)}명)")
         render_participant_table(females, 'F')
         if st.button("여자 참가자 추가", key="add_f", use_container_width=True):
             add_participant_dialog('F', curr['session_id'])
     
-    st.markdown("---")
     if st.button("🔍 중복 만남 체크", type="primary", use_container_width=True):
         check_duplicates(curr['session_id'])
 
@@ -315,7 +349,6 @@ def check_duplicates(session_id):
 # 2. 참가자 DB 탭 (UI 복구: 좌우 분할)
 # ---------------------------------------------------------
 def render_participant_tab():
-    st.subheader("참가자 DB")
     
     # 검색어를 session_state에 저장하지 않으면 입력하다가 날아갈 수 있음
     if 'db_search_term' not in st.session_state:
@@ -426,7 +459,6 @@ def delete_participant_dialog(p):
 # 3. 추천 탭
 # ---------------------------------------------------------
 def render_recommend_tab():
-    st.subheader("참가자 추천")
     
     # 1. 세션 상태에 결과 저장소 만들기
     if 'recommend_results' not in st.session_state:
@@ -437,8 +469,8 @@ def render_recommend_tab():
     
     c1, c2 = st.columns([3, 1])
     if opts:
-        sel_idx = c1.selectbox("기준 회차 (이 회차 멤버와 안 만난 사람 추천)", range(len(opts)), format_func=lambda x: opts[x])
-        gender = c2.radio("추천 성별", ['M', 'F'], horizontal=True)
+        sel_idx = c1.selectbox("⬇️ 기준 회차 멤버와 안 만난 사람 리스트업", range(len(opts)), format_func=lambda x: opts[x])
+        gender = c2.radio("추천 성별", ['남자', '여자'], horizontal=True)
     else:
         c1.selectbox("회차", ["없음"])
         return
@@ -482,8 +514,8 @@ def render_recommend_tab():
                 '출생년도': r['birth_date'][:4],
                 '직업': r['job'],
                 'MBTI': r['mbti'],
-                '방문': f"{r['visit_count']}회",
-                '마지막': r['last_visit'],
+                '방문 횟수': f"{r['visit_count']}회",
+                '최근 방문일': r['last_visit'],
                 '_full': r
             })
         
@@ -504,7 +536,10 @@ def render_recommend_tab():
                 show_detail_dialog(sel['name'], sel['birth_date'])
 
 def check_password():
-    """비밀번호 체크 함수 (엔터키 지원 + 대소문자 무시 + 한글 감지)"""
+    """비밀번호 체크 함수"""
+    if st.secrets.get("general", {}).get("dev_mode", False):
+        return True
+    
     if 'authenticated' not in st.session_state:
         st.session_state.authenticated = False
     
