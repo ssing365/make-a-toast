@@ -178,12 +178,16 @@ def get_all_sessions(_cache_version=0) -> List[Dict]:
 
 @st.cache_data(ttl=600)
 def get_session_participants(session_id: int, _cache_version=0) -> List[Dict]:
-    """특정 회차의 참가자 목록"""
+    """특정 회차의 참가자 목록 (방문 횟수 + 메모 포함)"""
     conn = get_connection()
     with get_cursor(conn) as cursor:
         cursor.execute("""
             SELECT p.name, p.birth_date, p.gender, p.job, p.mbti, p.phone,
-                   p.location, p.signup_route, a.attendance_id, a.payment_status
+                   p.location, p.signup_route, p.memo,  -- 🔥 [수정] 메모 컬럼 추가!
+                   a.attendance_id, a.payment_status,
+                   (SELECT COUNT(*) FROM attendance a2 
+                    WHERE a2.participant_name = p.name 
+                    AND a2.participant_birth = p.birth_date) as visit_count
             FROM attendance a
             JOIN participants p ON a.participant_name = p.name 
                                 AND a.participant_birth = p.birth_date
@@ -287,57 +291,74 @@ def get_participant_detail(name: str, birth_date: str, _cache_version=0) -> Dict
 
 @st.cache_data(ttl=600)
 def get_recommendations(session_id: int, gender: str, age_min: int = None, age_max: int = None, mbti: str = None) -> List[Dict]:
-    """추천 시스템"""
+    """추천 시스템 (SQL 최적화: 단일 쿼리로 N+1 문제 해결)"""
     conn = get_connection()
+    
+    # 1. 기본 쿼리 틀 (참가자 정보 + 방문 통계)
+    # LEFT JOIN을 써서 방문 기록이 없는 사람(0회)도 조회되도록 함
+    sql = """
+        SELECT 
+            p.name, p.birth_date, p.gender, p.job, p.mbti, p.phone, p.location, p.signup_route, p.memo,
+            COUNT(a.session_id) as visit_count,
+            MAX(s.session_date) as last_visit
+        FROM participants p
+        LEFT JOIN attendance a ON p.name = a.participant_name AND p.birth_date = a.participant_birth
+        LEFT JOIN sessions s ON a.session_id = s.session_id
+        WHERE p.gender = %s
+    """
+    params = [gender]
+
+    # 2. 동적 필터 조건 추가 (나이, MBTI)
+    if age_min or age_max:
+        curr_year = datetime.now().year
+        if age_min:
+            params.append(curr_year - age_min)
+            sql += " AND CAST(SUBSTRING(p.birth_date, 1, 4) AS INTEGER) <= %s"
+        if age_max:
+            params.append(curr_year - age_max)
+            sql += " AND CAST(SUBSTRING(p.birth_date, 1, 4) AS INTEGER) >= %s"
+    
+    if mbti:
+        params.append(f"%{mbti}%")
+        sql += " AND p.mbti LIKE %s"
+
+    # 3. [핵심] 제외 로직 (NOT EXISTS 서브쿼리 활용)
+    # (1) 현재 세션에 이미 있는 사람 제외
+    # (2) 현재 세션 멤버들과 '과거에 만난 적 있는' 사람 제외
+    
+    # 쿼리에 session_id가 3번 들어갑니다. (현재 멤버 조회용 2번 + 자기 자신 세션 제외용 1번)
+    params.extend([session_id, session_id, session_id])
+    
+    sql += """
+        AND NOT EXISTS (
+            -- 1. 이미 이번 회차에 등록된 사람 제외
+            SELECT 1 FROM attendance curr
+            WHERE curr.session_id = %s
+            AND curr.participant_name = p.name 
+            AND curr.participant_birth = p.birth_date
+        )
+        AND NOT EXISTS (
+            -- 2. 이번 회차 멤버들과 '만난 적 있는' 사람 제외 (겹지인 필터링)
+            SELECT 1
+            FROM attendance my_history               -- 후보자의 과거 기록
+            JOIN attendance met_history              -- 같은 회차였던 사람들 기록
+              ON my_history.session_id = met_history.session_id
+            JOIN attendance current_session_members  -- 그 사람이 이번 회차 멤버인지 확인
+              ON met_history.participant_name = current_session_members.participant_name
+              AND met_history.participant_birth = current_session_members.participant_birth
+            WHERE my_history.participant_name = p.name
+              AND my_history.participant_birth = p.birth_date
+              AND current_session_members.session_id = %s  -- 기준: 이번 회차 멤버들
+              AND my_history.session_id != %s              -- (혹시 모를 현재 회차 중복 계산 방지)
+        )
+        GROUP BY p.name, p.birth_date, p.gender, p.job, p.mbti, p.phone, p.location, p.signup_route, p.memo
+    """
+
+    # 4. 실행 및 결과 반환
     with get_cursor(conn) as cursor:
-        query = "SELECT * FROM participants WHERE gender = %s"
-        params = [gender]
+        cursor.execute(sql, tuple(params))
+        recommendations = [dict(row) for row in cursor.fetchall()]
         
-        if age_min or age_max:
-            curr_year = datetime.now().year
-            if age_min:
-                params.append(curr_year - age_min)
-                query += " AND CAST(SUBSTRING(birth_date, 1, 4) AS INTEGER) <= %s"
-            if age_max:
-                params.append(curr_year - age_max)
-                query += " AND CAST(SUBSTRING(birth_date, 1, 4) AS INTEGER) >= %s"
-        if mbti:
-            params.append(f"%{mbti}%")
-            query += " AND mbti LIKE %s"
-            
-        cursor.execute(query, tuple(params))
-        candidates = [dict(r) for r in cursor.fetchall()]
-        
-        cursor.execute("SELECT participant_name, participant_birth FROM attendance WHERE session_id = %s", (session_id,))
-        current_members = set((r['participant_name'], r['participant_birth']) for r in cursor.fetchall())
-        
-        recommendations = []
-        for cand in candidates:
-            if (cand['name'], cand['birth_date']) in current_members: continue
-            
-            has_met = False
-            if current_members:
-                conds = ["(a2.participant_name = %s AND a2.participant_birth = %s)"] * len(current_members)
-                or_clause = " OR ".join(conds)
-                chk_params = [cand['name'], cand['birth_date']]
-                for m in current_members: chk_params.extend(m)
-                    
-                cursor.execute(f"""
-                    SELECT 1 FROM attendance a1 JOIN attendance a2 ON a1.session_id = a2.session_id
-                    WHERE a1.participant_name = %s AND a1.participant_birth = %s AND ({or_clause}) LIMIT 1
-                """, tuple(chk_params))
-                if cursor.fetchone(): has_met = True
-            
-            if not has_met:
-                cursor.execute("""
-                    SELECT COUNT(*) as cnt, MAX(s.session_date) as last 
-                    FROM attendance a JOIN sessions s ON a.session_id = s.session_id
-                    WHERE participant_name = %s AND participant_birth = %s
-                """, (cand['name'], cand['birth_date']))
-                stat = cursor.fetchone()
-                cand['visit_count'] = stat['cnt']
-                cand['last_visit'] = stat['last']
-                recommendations.append(cand)
     return recommendations
 
 # ---------------------------------------------------------
@@ -383,14 +404,31 @@ def delete_session(session_id: int):
         raise e
 
 def remove_participant_from_session(session_id: int, participant_name: str, participant_birth: str):
-    """특정 회차에서 참가자 제거"""
+    """특정 회차에서 참가자 제거 + 방문 이력 없으면 DB에서 완전 삭제 (고아 제거)"""
     conn = get_connection()
     try:
         with get_cursor(conn) as cursor:
+            # 1. 이번 회차 출석 기록 삭제
             cursor.execute("""
                 DELETE FROM attendance 
                 WHERE session_id = %s AND participant_name = %s AND participant_birth = %s
             """, (session_id, participant_name, participant_birth))
+            
+            # 2. [핵심] 남은 방문 이력이 있는지 확인
+            cursor.execute("""
+                SELECT 1 FROM attendance 
+                WHERE participant_name = %s AND participant_birth = %s 
+                LIMIT 1
+            """, (participant_name, participant_birth))
+            
+            # 3. 이력이 하나도 없으면 -> 참가자 DB에서도 완전 삭제
+            if not cursor.fetchone():
+                cursor.execute("""
+                    DELETE FROM participants 
+                    WHERE name = %s AND birth_date = %s
+                """, (participant_name, participant_birth))
+                print(f"🧹 {participant_name}님 방문 기록 0회 -> DB에서 자동 삭제됨")
+
             conn.commit()
             clear_cache()
             print(f"✅ {participant_name} 제거 완료!")

@@ -6,8 +6,8 @@ import pandas as pd
 import tempfile
 import os
 import re
+from st_aggrid import AgGrid, GridOptionsBuilder, GridUpdateMode, DataReturnMode
 
-# 페이지 설정
 st.set_page_config(
     page_title="Make a Toast",
     page_icon="🍷",
@@ -25,7 +25,7 @@ if 'db_cache_version' not in st.session_state:
 
 def main():
     """메인 애플리케이션"""
-    st.title("🍷 Make a Toast")
+    st.markdown("## 🍷 Make a Toast")
     
     # 탭 생성
     tab1, tab2, tab3 = st.tabs(["회차 관리", "참가자 추천", "참가자 DB"])
@@ -43,43 +43,23 @@ def main():
 # 1. 회차 관리 탭
 # ---------------------------------------------------------
 def render_session_tab():
-    # CSS 스타일 주입
+    # 🎨 [CSS] 이제 복잡한 테이블 CSS는 다 버리고, 기본 여백만 조절합니다.
     st.markdown("""
     <style>
-        /* 1. 탭(Tab) 글씨 크기 키우기 */
+        /* 최상단 여백 줄이기 */
+        .block-container {
+            padding-top: 1rem !important;
+            padding-bottom: 2rem !important;
+        }
+        /* 탭 폰트 */
         .stTabs [data-baseweb="tab-list"] button [data-testid="stMarkdownContainer"] p {
             font-size: 1.1rem !important;
             font-weight: 500 !important;
         }
-        
-        /* 2. 셀렉트 박스(Input 영역) 배경색 변경 */
-        /* 셀렉트 박스(Input 영역) 배경색 변경 */
+        /* 셀렉트 박스 */
         div[data-baseweb="select"] > div {
-            background-color: #fff0eb !important; /* 연한 살구색 배경 */
-            border-color: #ffccbc !important;     /* 살구색 테두리 */
-        }
-
-        /* 마우스를 올렸을 때 테두리를 포인트 컬러(#ff4b4b)로 강조 */
-        div[data-baseweb="select"]:hover > div {
-            border-color: #ff4b4b !important;
-        }
-        
-        /* (선택사항) 버튼 높이를 셀렉트박스와 맞추기 위한 미세 조정 */
-        div[data-testid="column"] button {
-            height: 42px; /* 셀렉트박스 높이와 유사하게 */
-            padding: 0px 10px;
-        }
-        
-         /* 3. 버튼 내 글자 크기 및 여백 조절 */
-        div[data-testid="column"] button p {
-            font-size: 0.85rem !important; /* 글자 크기 축소 (기본은 보통 1rem) */
-            font-weight: 600 !important;   /* 가독성을 위해 약간 굵게 */
-        }
-
-        /* 버튼 자체의 패딩을 줄여서 글자가 잘 안 잘리게 함 */
-        div[data-testid="column"] button {
-            padding-left: 0.2rem !important;
-            padding-right: 0.2rem !important;
+            background-color: #fff0eb !important;
+            border-color: #ffccbc !important;
         }
     </style>
     """, unsafe_allow_html=True)
@@ -87,18 +67,15 @@ def render_session_tab():
     sessions = db.get_all_sessions()
     session_options = [f"📅 {s['session_date']} {s['session_time']} | 주제: {s['theme']} | {s['host']}" for s in sessions]
 
-    # 💡 [레이아웃 변경] 7:1:1:1 비율로 분할 (셀렉트박스 길게, 버튼 짧게)
+    # 회차 선택 레이아웃
     col_sel, col_add, col_del, col_imp = st.columns([7.2, 1.2, 1.2, 1.2])
 
-    # 1. 회차 선택 박스
     with col_sel:
         if session_options:
             selected_idx = st.selectbox(
-                "회차 선택",
-                range(len(session_options)),
+                "회차 선택", range(len(session_options)),
                 format_func=lambda x: session_options[x],
-                key="session_select",
-                label_visibility="collapsed", # 라벨 숨김
+                key="session_select", label_visibility="collapsed",
             )
             if selected_idx is not None:
                 st.session_state.current_session_id = sessions[selected_idx]['session_id']
@@ -106,24 +83,19 @@ def render_session_tab():
             st.selectbox("회차 선택", ["회차가 없습니다"], disabled=True, label_visibility="collapsed")
             st.session_state.current_session_id = None
     
-    # 2. 아이콘 버튼들 (help에 설명을 넣어 마우스 올리면 뜨게 함)
     with col_add:
-        if st.button("회차 추가",  use_container_width=True):
+        if st.button("회차 추가", use_container_width=True):
             create_session_dialog()
-            
     with col_del:
-        # 삭제는 위험하므로 type="primary"(빨간색) 유지
-        if st.button("회차 삭제", type="primary",  use_container_width=True):
+        if st.button("회차 삭제", use_container_width=True):
             if st.session_state.current_session_id:
                 delete_session_dialog(st.session_state.current_session_id, sessions)
             else:
-                st.warning("선택된 회차가 없습니다.")
-                
+                st.warning("선택무")
     with col_imp:
         if st.button("엑셀 넣기", use_container_width=True):
             import_excel_dialog()
 
-    # 현재 회차 정보 및 참가자 관리
     if st.session_state.current_session_id:
         render_current_session_info(sessions)
 
@@ -133,7 +105,6 @@ def create_session_dialog():
         session_date = st.date_input("날짜")
         session_time = st.text_input("시간대", value="19:30")
         
-        # 🔥 [복구 완료] 드롭다운 메뉴 복구
         theme = st.selectbox(
             "주제",
             [ '❤️결혼을 전제로❤️ 진지하고 섬세한 미팅', 
@@ -144,7 +115,6 @@ def create_session_dialog():
               '❤️MBTI-S❤️를 위해 준비한 아주 섬세한 미팅', '기타']
         )
         
-        # '기타' 선택 시 직접 입력창 보여주기 (옵션)
         custom_theme = ""
         if theme == '기타':
             custom_theme = st.text_input("주제 직접 입력")
@@ -189,36 +159,6 @@ def import_excel_dialog():
         except Exception as e:
             st.error(f"오류: {e}")
 
-def render_current_session_info(sessions):
-    curr = next((s for s in sessions if s['session_id'] == st.session_state.current_session_id), None)
-    if not curr: return
-
-    # 참가자 목록 가져오기
-    participants = db.get_session_participants(curr['session_id'])
-    
-    # 🔥 [복구 완료] 좌우 분할 UI
-    males = [p for p in participants if p['gender'] == 'M']
-    females = [p for p in participants if p['gender'] == 'F']
-
-    col1, col2 = st.columns(2)
-
-    # 남자 참가자 영역
-    with col1:
-        st.markdown(f"##### 남자 ({len(males)}명)")
-        render_participant_table(males, 'M')
-        if st.button("남자 참가자 추가", key="add_m", use_container_width=True):
-            add_participant_dialog('M', curr['session_id'])
-
-    # 여자 참가자 영역
-    with col2:
-        st.markdown(f"##### 여자 ({len(females)}명)")
-        render_participant_table(females, 'F')
-        if st.button("여자 참가자 추가", key="add_f", use_container_width=True):
-            add_participant_dialog('F', curr['session_id'])
-    
-    if st.button("🔍 중복 만남 체크", type="primary", use_container_width=True):
-        check_duplicates(curr['session_id'])
-
 def render_participant_table(participants, gender_code):
     if not participants:
         st.info("참가자가 없습니다.")
@@ -245,7 +185,7 @@ def render_participant_table(participants, gender_code):
         df.drop(columns=['_full_data']),
         use_container_width=True,
         height=300,
-        hide_index=True,
+        hide_index=True, # 5. 참가자 테이블 컬럼 정리 (인덱스 숨김)
         selection_mode="single-row",
         on_select="rerun",
         key=f"table_{gender_code}"
@@ -260,6 +200,108 @@ def render_participant_table(participants, gender_code):
             show_detail_dialog(selected['name'], selected['birth_date'])
         if c2.button("제거", key=f"rem_{gender_code}_{idx}"):
             remove_participant_dialog(selected, st.session_state.current_session_id)
+
+def render_current_session_info(sessions):
+    """현재 회차 정보 및 통합 참가자 테이블 (AgGrid 적용: 행 클릭 선택)"""
+    curr = next((s for s in sessions if s['session_id'] == st.session_state.current_session_id), None)
+    if not curr: return
+
+    participants = db.get_session_participants(curr['session_id'])
+
+    # 🔥 [추가] 성별 고정 정렬: 남자(M) 우선, 그 다음 이름순
+    if participants:
+        participants.sort(key=lambda x: (0 if x['gender'] == 'M' else 1, x['name']))
+
+    act_c1, _, act_c2, _, act_c3 = st.columns([7.7, 0.1, 2, 0.1, 2])
+    
+    with act_c1:
+        if st.button("🔍 중복 만남 체크", type="primary", use_container_width=True):
+            check_duplicates(curr['session_id'])
+    with act_c2:
+        if st.button("➕ 남자 참가자 추가", use_container_width=True):
+            add_participant_dialog('M', curr['session_id'])
+    with act_c3:
+        if st.button("➕ 여자 참가자 추가", use_container_width=True):
+            add_participant_dialog('F', curr['session_id'])
+
+    # ---------------------------------------------------------
+    # 1. AgGrid (행 클릭이 가능한 엑셀 같은 표)
+    # ---------------------------------------------------------
+    if not participants:
+        st.info("아직 등록된 참가자가 없습니다.")
+    else:
+        # 통계 표시
+        m_count = len([p for p in participants if p['gender'] == 'M'])
+        f_count = len([p for p in participants if p['gender'] == 'F'])
+        st.caption(f"총 {len(participants)}명 (남 {m_count} / 여 {f_count})")
+
+        # 데이터프레임 변환
+        data = []
+        for p in participants:
+            memo_txt = str(p.get('memo', '')).strip()
+            memo_mark = "📝" if memo_txt and memo_txt != 'None' else ""
+            
+            data.append({
+                '성별': "남" if p['gender'] == 'M' else "여",
+                '이름': f"{p['name']} {memo_mark}",
+                '출생년도': p['birth_date'][:4],
+                '전화번호': p['phone'] if p['phone'] else "-",
+                '사는곳': p['location'] if p['location'] else "-",
+                '직업': p['job'] if p['job'] else "-",
+                'MBTI': p['mbti'] if p['mbti'] else "-",
+                '방문': f"{p.get('visit_count', 0)}회",
+                '경로': p['signup_route'] if p['signup_route'] else "-",
+                '_full_name': p['name'],       
+                '_full_birth': p['birth_date'] 
+            })
+        
+        df = pd.DataFrame(data)
+
+        # AgGrid 옵션 설정
+        gb = GridOptionsBuilder.from_dataframe(df)
+        gb.configure_column("_full_name", hide=True)
+        gb.configure_column("_full_birth", hide=True)
+        gb.configure_selection(selection_mode='single', use_checkbox=False, pre_selected_rows=[])
+        gb.configure_grid_options(domLayout='autoHeight')
+        gridOptions = gb.build()
+
+        grid_response = AgGrid(
+            df,
+            gridOptions=gridOptions,
+            update_mode=GridUpdateMode.SELECTION_CHANGED, 
+            data_return_mode=DataReturnMode.FILTERED_AND_SORTED,
+            fit_columns_on_grid_load=True, 
+            theme='streamlit', 
+            key='aggrid_table'
+        )
+
+        # ---------------------------------------------------------
+        # 2. 선택된 행 액션 바
+        # ---------------------------------------------------------
+        selected = grid_response['selected_rows']
+        
+        if selected is not None and len(selected) > 0:
+            if isinstance(selected, pd.DataFrame):
+                sel_row = selected.iloc[0] 
+            else:
+                sel_row = selected[0]      
+            
+            t_name = sel_row.get('_full_name') or sel_row.get('이름').split(' ')[0]
+            t_birth = sel_row.get('_full_birth')
+
+            target_p = next((p for p in participants if p['name'] == t_name and p['birth_date'] == t_birth), None)
+            
+            if target_p:
+                with st.container(border=True):
+                    c_msg, c_btn1, c_btn2 = st.columns([6, 2, 2])
+                    with c_msg:
+                        st.markdown(f"##### 👉 **{target_p['name']} ({target_p['birth_date'][:4]})**")
+                    with c_btn1:
+                        if st.button("ℹ️ 상세 정보", use_container_width=True):
+                            show_detail_dialog(target_p['name'], target_p['birth_date'])
+                    with c_btn2:
+                        if st.button("🗑️ 명단 제외", type="primary", use_container_width=True):
+                            remove_participant_dialog(target_p, st.session_state.current_session_id)
 
 @st.dialog("참가자 추가")
 def add_participant_dialog(gender, session_id):
@@ -302,11 +344,10 @@ def show_detail_dialog(name, birth_date):
     
     st.subheader(f"{detail['name']} ({birth_year})")
     
-    st.markdown("---") # 구분선 추가로 더 깔끔하게
+    st.markdown("---") 
 
     c1, c2 = st.columns(2)
     
-    # 💡 수정 포인트: 한 줄씩 따로 써야 줄바꿈과 정렬이 확실하게 됩니다.
     with c1:
         st.markdown(f"**출생년도:** {birth_year}")
         st.markdown(f"**직업:** {detail['job']}")
@@ -346,7 +387,7 @@ def check_duplicates(session_id):
             st.warning(f"{d['person1']} ↔ {d['person2']} ({', '.join(d['session_dates'])})")
 
 # ---------------------------------------------------------
-# 2. 참가자 DB 탭 (UI 복구: 좌우 분할)
+# 2. 참가자 DB 탭
 # ---------------------------------------------------------
 def render_participant_tab():
     
@@ -368,13 +409,14 @@ def render_participant_tab():
     col1, col2 = st.columns(2)
 
     with col1:
-        st.subheader(f"남자 ({len(males)}명)")
+        st.markdown(f"#### 남자 ({len(males)}명)")
         render_db_table(males, 'db_m')
     
     with col2:
-        st.subheader(f"여자 ({len(females)}명)")
+        st.markdown(f"#### 여자 ({len(females)}명)")
         render_db_table(females, 'db_f')
 
+# 1. render_db_table 중복 정의 제거 및 통합 (메모 아이콘 기능 포함)
 def render_db_table(participants, key_suffix):
     if not participants:
         st.info("데이터가 없습니다.")
@@ -382,8 +424,8 @@ def render_db_table(participants, key_suffix):
 
     data = []
     for p in participants:
-        # 📝 메모 표시 복구
-        memo_mark = " 📝" if p.get('memo') and str(p['memo']).strip() else ""
+        # 📝 메모 아이콘 표시 기능 복구
+        memo_mark = "📝" if p.get('memo') and str(p['memo']).strip() else ""
         
         data.append({
             '이름': f"{p['name']}{memo_mark}",
@@ -399,41 +441,7 @@ def render_db_table(participants, key_suffix):
         df.drop(columns=['_full']), 
         use_container_width=True, 
         height=600, 
-        hide_index=True,
-        on_select="rerun", 
-        selection_mode="single-row",
-        key=f"table_{key_suffix}"
-    )
-
-    if event.selection.rows:
-        sel = df.iloc[event.selection.rows[0]]['_full']
-        c1, c2 = st.columns(2)
-        if c1.button("상세 정보", key=f"d_det_{key_suffix}"):
-            show_detail_dialog(sel['name'], sel['birth_date'])
-        if c2.button("영구 삭제", type="primary", key=f"d_del_{key_suffix}"):
-            delete_participant_dialog(sel)
-
-def render_db_table(participants, key_suffix):
-    if not participants:
-        st.info("데이터가 없습니다.")
-        return
-
-    data = []
-    for p in participants:
-        data.append({
-            '이름': p['name'],
-            '출생년도': p['birth_date'][:4],
-            '직업': p['job'],
-            'MBTI': p['mbti'],
-            '지역': p['location'],
-            '_full': p
-        })
-    
-    df = pd.DataFrame(data)
-    event = st.dataframe(
-        df.drop(columns=['_full']), 
-        use_container_width=True, 
-        height=600, 
+        hide_index=True, # 5. 참가자 테이블 컬럼 정리
         on_select="rerun", 
         selection_mode="single-row",
         key=f"table_{key_suffix}"
@@ -456,7 +464,7 @@ def delete_participant_dialog(p):
         st.rerun()
 
 # ---------------------------------------------------------
-# 3. 추천 탭
+# 2. 추천 탭
 # ---------------------------------------------------------
 def render_recommend_tab():
     
@@ -470,7 +478,10 @@ def render_recommend_tab():
     c1, c2 = st.columns([3, 1])
     if opts:
         sel_idx = c1.selectbox("⬇️ 기준 회차 멤버와 안 만난 사람 리스트업", range(len(opts)), format_func=lambda x: opts[x])
-        gender = c2.radio("추천 성별", ['남자', '여자'], horizontal=True)
+        
+        # 성별 변환 (화면: 남자/여자 -> DB: M/F)
+        gender_kor = c2.radio("추천 성별", ['남자', '여자'], horizontal=True)
+        gender = 'M' if gender_kor == '남자' else 'F'
     else:
         c1.selectbox("회차", ["없음"])
         return
@@ -490,15 +501,15 @@ def render_recommend_tab():
         if birth_max: age_min = curr_year - int(birth_max)
         if birth_min: age_max = curr_year - int(birth_min)
 
-        # DB 조회 결과를 세션에 저장 (화면이 깜빡여도 유지됨)
+        # DB 조회 (최적화된 쿼리 사용)
         st.session_state.recommend_results = db.get_recommendations(sid, gender, age_min, age_max, mbti_filter)
         
         if not st.session_state.recommend_results:
             st.info("조건에 맞는 추천 대상이 없습니다.")
 
-    # 3. 결과가 저장되어 있으면 표 그리기 (버튼 밖에서 실행)
+    # 3. 결과가 저장되어 있으면 표 그리기
     if st.session_state.recommend_results:
-        recs = st.session_state.recommend_results # 저장된 데이터 불러오기
+        recs = st.session_state.recommend_results 
         
         # 정렬 적용
         if sort_option == "최근 방문일 순":
@@ -509,19 +520,24 @@ def render_recommend_tab():
         data = []
         for r in recs:
             memo_mark = " 📝" if r.get('memo') and str(r['memo']).strip() else ""
+            
+            # 🔥 [수정] 전화번호, 사는곳, 등록경로 컬럼 추가
             data.append({
                 '이름': f"{r['name']}{memo_mark}",
                 '출생년도': r['birth_date'][:4],
+                '전화번호': r['phone'] if r['phone'] else "-",         # 추가됨
+                '사는곳': r['location'] if r['location'] else "-",    # 추가됨
                 '직업': r['job'],
                 'MBTI': r['mbti'],
                 '방문 횟수': f"{r['visit_count']}회",
                 '최근 방문일': r['last_visit'],
+                '등록경로': r['signup_route'] if r['signup_route'] else "-", # 추가됨
                 '_full': r
             })
         
         df = pd.DataFrame(data)
         
-        # 4. 표 그리기 (이제 클릭해도 안 사라짐!)
+        # 4. 표 그리기
         event = st.dataframe(
             df.drop(columns=['_full']), 
             use_container_width=True, 
@@ -532,7 +548,8 @@ def render_recommend_tab():
         
         if event.selection.rows:
             sel = df.iloc[event.selection.rows[0]]['_full']
-            if st.button("상세 정보 보기", use_container_width=True):
+            # 버튼이 표 바로 아래에 생김
+            if st.button("ℹ️ 상세 정보 보기", use_container_width=True):
                 show_detail_dialog(sel['name'], sel['birth_date'])
 
 def check_password():
