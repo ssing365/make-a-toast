@@ -46,11 +46,6 @@ def render_session_tab():
     # 🎨 [CSS] 이제 복잡한 테이블 CSS는 다 버리고, 기본 여백만 조절합니다.
     st.markdown("""
     <style>
-        /* 최상단 여백 줄이기 */
-        .block-container {
-            padding-top: 1rem !important;
-            padding-bottom: 2rem !important;
-        }
         /* 탭 폰트 */
         .stTabs [data-baseweb="tab-list"] button [data-testid="stMarkdownContainer"] p {
             font-size: 1.1rem !important;
