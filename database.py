@@ -469,12 +469,30 @@ def import_excel_file(file_path):
                 a1 = str(sheet['A1'].value).strip() if sheet['A1'].value else ""
                 host = str(sheet['N2'].value).strip() if sheet['N2'].value else "미정"
                 
+                #s_time = "미정"
+                #t_match = re.search(r'(\d{1,2}):(\d{2})\s*(AM|PM)', a1, re.IGNORECASE)
+                #if t_match:
+                #    h, m, mer = int(t_match.group(1)), int(t_match.group(2)), t_match.group(3).upper()
+                #    if mer == 'PM' and h != 12: h += 12
+                #    elif mer == 'AM' and h == 12: h = 0
+                #    s_time = f"{h:02d}:{m:02d}"
+
                 s_time = "미정"
-                t_match = re.search(r'(\d{1,2}):(\d{2})\s*(AM|PM)', a1, re.IGNORECASE)
+                # (\d{1,2}) : 시간 (1~2자리)
+                # (?::(\d{2}))? : 콜론과 분은 '있을 수도 있고 없을 수도 있음' (?)
+                # \s* : 공백 허용
+                # (AM|PM) : 오전/오후 필수
+                t_match = re.search(r'(\d{1,2})(?::(\d{2}))?\s*(AM|PM)', a1, re.IGNORECASE)
+                
                 if t_match:
-                    h, m, mer = int(t_match.group(1)), int(t_match.group(2)), t_match.group(3).upper()
+                    h = int(t_match.group(1))
+                    # 분(group 2)이 없으면 0분으로 처리
+                    m = int(t_match.group(2)) if t_match.group(2) else 0
+                    mer = t_match.group(3).upper()
+                    
                     if mer == 'PM' and h != 12: h += 12
                     elif mer == 'AM' and h == 12: h = 0
+                    
                     s_time = f"{h:02d}:{m:02d}"
                 
                 theme_match = re.search(r'-\s*(.+)$', a1)
