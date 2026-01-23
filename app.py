@@ -197,16 +197,17 @@ def render_participant_table(participants, gender_code):
             remove_participant_dialog(selected, st.session_state.current_session_id)
 
 def render_current_session_info(sessions):
-    """현재 회차 정보 및 통합 참가자 테이블 (AgGrid 적용: 행 클릭 선택)"""
+    """현재 회차 정보 및 통합 참가자 테이블 (Native Streamlit: 기본 그리드 사용)"""
     curr = next((s for s in sessions if s['session_id'] == st.session_state.current_session_id), None)
     if not curr: return
 
     participants = db.get_session_participants(curr['session_id'])
 
-    # 🔥 [추가] 성별 고정 정렬: 남자(M) 우선, 그 다음 이름순
+    # 1. [정렬] 남자(M) 우선, 그 다음 이름순 (데이터프레임 만들기 전에 미리 정렬)
     if participants:
         participants.sort(key=lambda x: (0 if x['gender'] == 'M' else 1, x['name']))
 
+    # 상단 액션 버튼 (6:2:2)
     act_c1, _, act_c2, _, act_c3 = st.columns([7.7, 0.1, 2, 0.1, 2])
     
     with act_c1:
@@ -220,7 +221,7 @@ def render_current_session_info(sessions):
             add_participant_dialog('F', curr['session_id'])
 
     # ---------------------------------------------------------
-    # 1. AgGrid (행 클릭이 가능한 엑셀 같은 표)
+    # 2. Native Streamlit Dataframe (기본 표)
     # ---------------------------------------------------------
     if not participants:
         st.info("아직 등록된 참가자가 없습니다.")
@@ -229,8 +230,8 @@ def render_current_session_info(sessions):
         m_count = len([p for p in participants if p['gender'] == 'M'])
         f_count = len([p for p in participants if p['gender'] == 'F'])
         st.caption(f"총 {len(participants)}명 (남 {m_count} / 여 {f_count})")
-
-        # 데이터프레임 변환
+        
+        # 데이터프레임 변환 (화면 표시용 데이터만 깔끔하게 넣기)
         data = []
         for p in participants:
             memo_txt = str(p.get('memo', '')).strip()
@@ -245,58 +246,44 @@ def render_current_session_info(sessions):
                 '직업': p['job'] if p['job'] else "-",
                 'MBTI': p['mbti'] if p['mbti'] else "-",
                 '방문': f"{p.get('visit_count', 0)}회",
-                '경로': p['signup_route'] if p['signup_route'] else "-",
-                '_full_name': p['name'],       
-                '_full_birth': p['birth_date'] 
+                '경로': p['signup_route'] if p['signup_route'] else "-"
             })
         
         df = pd.DataFrame(data)
 
-        # AgGrid 옵션 설정
-        gb = GridOptionsBuilder.from_dataframe(df)
-        gb.configure_column("_full_name", hide=True)
-        gb.configure_column("_full_birth", hide=True)
-        gb.configure_selection(selection_mode='single', use_checkbox=False, pre_selected_rows=[])
-        gb.configure_grid_options(domLayout='autoHeight')
-        gridOptions = gb.build()
-
-        grid_response = AgGrid(
+        # 🔥 [핵심] Streamlit 기본 표 그리기
+        event = st.dataframe(
             df,
-            gridOptions=gridOptions,
-            update_mode=GridUpdateMode.SELECTION_CHANGED, 
-            data_return_mode=DataReturnMode.FILTERED_AND_SORTED,
-            fit_columns_on_grid_load=True, 
-            theme='streamlit', 
-            key='aggrid_table'
+            use_container_width=True,
+            hide_index=True,             # 인덱스 숨김
+            on_select="rerun",           # 선택 시 리런
+            selection_mode="single-row", # 한 줄 선택 모드
+            height=35 + (len(df) * 35) if len(df) < 15 else 500 # 높이 자동 조절
         )
 
         # ---------------------------------------------------------
-        # 2. 선택된 행 액션 바
+        # 3. 선택된 행 액션 바
         # ---------------------------------------------------------
-        selected = grid_response['selected_rows']
-        
-        if selected is not None and len(selected) > 0:
-            if isinstance(selected, pd.DataFrame):
-                sel_row = selected.iloc[0] 
-            else:
-                sel_row = selected[0]      
+        # event.selection.rows에는 선택된 행의 '숫자 인덱스'가 리스트로 들어옵니다.
+        if event.selection.rows:
+            idx = event.selection.rows[0]
             
-            t_name = sel_row.get('_full_name') or sel_row.get('이름').split(' ')[0]
-            t_birth = sel_row.get('_full_birth')
-
-            target_p = next((p for p in participants if p['name'] == t_name and p['birth_date'] == t_birth), None)
+            # 🔥 [심플해진 로직]
+            # 이미 위에서 participants를 정렬해서 표를 그렸으므로, 
+            # 인덱스(idx)가 곧 participants 리스트의 순서와 같습니다.
+            target_p = participants[idx] 
             
-            if target_p:
-                with st.container(border=True):
-                    c_msg, c_btn1, c_btn2 = st.columns([6, 2, 2])
-                    with c_msg:
-                        st.markdown(f"##### 👉 **{target_p['name']} ({target_p['birth_date'][:4]})**")
-                    with c_btn1:
-                        if st.button("ℹ️ 상세 정보", use_container_width=True):
-                            show_detail_dialog(target_p['name'], target_p['birth_date'])
-                    with c_btn2:
-                        if st.button("🗑️ 명단 제외", type="primary", use_container_width=True):
-                            remove_participant_dialog(target_p, st.session_state.current_session_id)
+            # 선택된 사람 정보 표시창
+            with st.container(border=True):
+                c_msg, c_btn1, c_btn2 = st.columns([6, 2, 2])
+                with c_msg:
+                    st.markdown(f"##### 👉 **{target_p['name']} ({target_p['birth_date'][:4]})**")
+                with c_btn1:
+                    if st.button("ℹ️ 상세 정보", use_container_width=True):
+                        show_detail_dialog(target_p['name'], target_p['birth_date'])
+                with c_btn2:
+                    if st.button("🗑️ 명단 제외", type="primary", use_container_width=True):
+                        remove_participant_dialog(target_p, st.session_state.current_session_id)
 
 @st.dialog("참가자 추가")
 def add_participant_dialog(gender, session_id):
