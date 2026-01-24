@@ -451,85 +451,113 @@ def delete_participant(participant_name: str, participant_birth: str):
         raise e
 
 def import_excel_file(file_path):
-    """엑셀 파일 임포트 (최적화)"""
+    """엑셀 파일 임포트 (강제 확장 + 예외 처리 강화 버전)"""
+    import openpyxl 
+    import re
+    
+    # 1. 엑셀 파일 로드
     wb = openpyxl.load_workbook(file_path, data_only=True)
     conn = get_connection()
     total = 0
+    
     try:
         with get_cursor(conn) as cursor:
             for sheet_name in wb.sheetnames:
                 sheet = wb[sheet_name]
                 s_name_clean = sheet_name.replace("의 사본", "").strip()
-                print(f"Processing: {s_name_clean}")
                 
+                # [회차 날짜] 시트 이름에서 파싱
                 match = re.search(r'(\d{4})(\d{2})(\d{2})', s_name_clean)
                 if not match: continue
                 s_date = f"{match.group(1)}-{match.group(2)}-{match.group(3)}"
+                print(f"Processing Sheet: {s_date}")
                 
+                # [회차 정보] A1 셀 파싱
                 a1 = str(sheet['A1'].value).strip() if sheet['A1'].value else ""
-                host = str(sheet['N2'].value).strip() if sheet['N2'].value else "미정"
                 
-                #s_time = "미정"
-                #t_match = re.search(r'(\d{1,2}):(\d{2})\s*(AM|PM)', a1, re.IGNORECASE)
-                #if t_match:
-                #    h, m, mer = int(t_match.group(1)), int(t_match.group(2)), t_match.group(3).upper()
-                #    if mer == 'PM' and h != 12: h += 12
-                #    elif mer == 'AM' and h == 12: h = 0
-                #    s_time = f"{h:02d}:{m:02d}"
-
+                # 시간 파싱 (2PM, 19:30 등)
                 s_time = "미정"
-                # (\d{1,2}) : 시간 (1~2자리)
-                # (?::(\d{2}))? : 콜론과 분은 '있을 수도 있고 없을 수도 있음' (?)
-                # \s* : 공백 허용
-                # (AM|PM) : 오전/오후 필수
                 t_match = re.search(r'(\d{1,2})(?::(\d{2}))?\s*(AM|PM)', a1, re.IGNORECASE)
-                
                 if t_match:
                     h = int(t_match.group(1))
-                    # 분(group 2)이 없으면 0분으로 처리
                     m = int(t_match.group(2)) if t_match.group(2) else 0
                     mer = t_match.group(3).upper()
-                    
                     if mer == 'PM' and h != 12: h += 12
                     elif mer == 'AM' and h == 12: h = 0
-                    
                     s_time = f"{h:02d}:{m:02d}"
                 
+                # 주제 및 호스트 파싱
                 theme_match = re.search(r'-\s*(.+)$', a1)
                 theme = theme_match.group(1).strip() if theme_match else a1
-                
+                host = str(sheet['N2'].value).strip() if sheet['N2'].value else "미정"
+
+                # 회차 DB 저장
                 cursor.execute("INSERT INTO sessions (session_date, session_time, theme, host) VALUES (%s, %s, %s, %s) RETURNING session_id", 
                                (s_date, s_time, theme, host))
                 sid = cursor.fetchone()['session_id']
                 
+                # [참가자 명단 파싱]
                 cnt = 0
+                # min_row=2: 제목줄 없는 파일 대응
                 for row in sheet.iter_rows(min_row=2, values_only=True):
                     try:
-                        vals = [str(c).strip() if c else "" for c in row]
-                        if len(vals) < 12: continue
-                        gender, nick, name, phone, _, _, loc, birth, job, mbti, intro, route = vals[:12]
+                        # 1. 일단 데이터 가져오기 (None -> 빈 문자열 변환)
+                        raw_vals = [str(c).strip() if c is not None else "" for c in row]
+                        
+                        # 2. [핵심 수정] 데이터가 짧아도 강제로 15칸까지 늘림
+                        # 이렇게 하면 뒤쪽 컬럼(가입경로 등)이 비어있어도 에러가 안 납니다.
+                        vals = raw_vals + [""] * (15 - len(raw_vals))
+                        
+                        # 3. 안전하게 변수 할당 (인덱스로 접근)
+                        gender = vals[0]  # A열
+                        name   = vals[2]  # C열
+                        birth  = vals[7]  # H열
+                        
+                        # 필수값 체크 (이름, 생년 없으면 스킵)
                         if not name or not birth or birth == "-": continue
-                        
+
+                        # 데이터 정제
                         g_code = 'M' if gender.upper() in ['M', '남', '남자', '男'] else 'F'
-                        b_clean = re.sub(r'\D', '', birth)
-                        if len(b_clean) != 4: continue
-                        b_date = f"{b_clean}-01-01"
-                        p_clean = re.sub(r'\D', '', phone)
+                        b_clean = re.sub(r'\D', '', birth) # 숫자만 추출
                         
+                        # 출생년도 보정 (1985.0 -> 1985)
+                        if len(b_clean) > 4: b_clean = b_clean[:4]
+                        if len(b_clean) != 4: continue
+                        
+                        b_date = f"{b_clean}-01-01"
+                        p_clean = re.sub(r'\D', '', vals[3]) # D열 (전화번호)
+                        
+                        # 나머지 정보 매핑 (없어도 에러 안 남)
+                        loc   = vals[6]  # G열
+                        job   = vals[8]  # I열
+                        mbti  = vals[9]  # J열
+                        intro = vals[10] # K열
+                        route = vals[11] # L열
+
+                        # DB 저장
                         cursor.execute("""
                             INSERT INTO participants (name, birth_date, gender, nickname, phone, location, job, mbti, intro, signup_route, first_visit_date)
                             VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s) ON CONFLICT (name, birth_date) DO NOTHING
-                        """, (name, b_date, g_code, nick, p_clean, loc, job, mbti, intro, route, s_date))
+                        """, (name, b_date, g_code, "", p_clean, loc, job, mbti, intro, route, s_date))
                         
                         cursor.execute("INSERT INTO attendance (session_id, participant_name, participant_birth) VALUES (%s, %s, %s) ON CONFLICT DO NOTHING", 
                                        (sid, name, b_date))
                         cnt += 1
-                    except: continue
+                    except Exception as row_err:
+                        # 에러 나면 로그 출력 (디버깅용)
+                        print(f"Row Skip Error ({s_date}): {row_err}")
+                        continue
+                        
                 total += cnt
-                print(f" -> {s_date}: {cnt}명")
+                print(f" -> {s_date}: {cnt}명 저장됨")
+                
             conn.commit()
     except Exception as e:
         conn.rollback()
-        st.error(f"엑셀 임포트 오류: {e}")
+        st.error(f"엑셀 임포트 전체 오류: {e}")
+        
     clear_cache()
-    print(f"🎉 임포트 완료! 총 {total}명")
+    if total > 0:
+        st.success(f"🎉 임포트 완료! 총 {total}명")
+    else:
+        st.warning("회차는 생성되었으나 참가자를 찾지 못했습니다. 엑셀 형식을 확인해주세요.")
