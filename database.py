@@ -237,6 +237,10 @@ def check_duplicate_meetings(session_id: int, _cache_version=0) -> List[Dict]:
         for i in range(len(people)):
             for j in range(i + 1, len(people)):
                 p1, p2 = people[i], people[j]
+
+                # 🔥 [핵심 수정] 자기 자신끼리 비교하는 경우 즉시 스킵 (도플갱어 방지)
+                if p1 == p2: continue
+
                 if p1 in targets and p2 in targets:
                     if p1 > p2: p1, p2 = p2, p1
                     
